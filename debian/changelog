@@ -1,8 +1,8 @@
-python-botocore (0.29.0+repack-1) UNRELEASED; urgency=medium
+python-botocore (0.29.0+repack-1) unstable; urgency=medium
 
   * Remove duplicated code from upstream tarball.
 
- -- TANIGUCHI Takaki <takaki@debian.org>  Sun, 05 Jan 2014 22:31:26 +0900
+ -- TANIGUCHI Takaki <takaki@debian.org>  Sun, 05 Jan 2014 23:02:56 +0900
 
 python-botocore (0.29.0-1) unstable; urgency=low
 
