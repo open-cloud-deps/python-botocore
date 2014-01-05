@@ -1,0 +1,32 @@
+Source: python-botocore
+Section: python
+Priority: optional
+Maintainer: Debian Python Modules Team <python-modules-team@lists.alioth.debian.org>
+Uploaders: TANIGUCHI Takaki <takaki@debian.org>
+Build-Depends: debhelper (>= 9)
+	, python-all
+	, python-setuptools
+	, python3-all
+	, python3-setuptools
+Standards-Version: 3.9.5
+Homepage: https://github.com/boto/botocore
+Vcs-Svn: svn://anonscm.debian.org/python-apps/packages/python-botocore/trunk/
+Vcs-Browser: http://anonscm.debian.org/viewvc/python-apps/packages/python-botocore/trunk/
+
+Package: python-botocore
+Architecture: all
+Depends: ${python:Depends}, ${misc:Depends}
+Description: Low-level, data-driven core of boto 3 (Python 2)
+ A low-level interface to a growing number of Amazon Web Services.
+ The botocore package is the foundation for AWS-CLI.
+ .
+ This package contains the module for Python 2.
+
+Package: python3-botocore
+Architecture: all
+Depends: ${python3:Depends}, ${misc:Depends}
+Description: Low-level, data-driven core of boto 3 (Python 3)
+ A low-level interface to a growing number of Amazon Web Services.
+ The botocore package is the foundation for AWS-CLI.
+ .
+ This package contains the module for Python 3.

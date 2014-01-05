@@ -1,0 +1,72 @@
+Description: Remove duplicate code
+ Upstream code contains duplicate code (requests and urllib3).
+ Remove this code from orig-tarball and modify import directives.
+ .
+ python-botocore (0.29.0+repack-1) UNRELEASED; urgency=medium
+ .
+   * Remove duplicated code from upstream tarball.
+Author: TANIGUCHI Takaki <takaki@debian.org>
+
+---
+The information above should follow the Patch Tagging Guidelines, please
+checkout http://dep.debian.net/deps/dep3/ to learn about the format. Here
+are templates for supplementary fields that you might want to add:
+
+Origin: <vendor|upstream|other>, <url of original patch>
+Bug: <url in upstream bugtracker>
+Bug-Debian: http://bugs.debian.org/<bugnumber>
+Bug-Ubuntu: https://launchpad.net/bugs/<bugnumber>
+Forwarded: <no|not-needed|url proving that it has been forwarded>
+Reviewed-By: <name and email of someone who approved the patch>
+Last-Update: <YYYY-MM-DD>
+
+--- python-botocore-0.29.0+repack.orig/botocore/awsrequest.py
++++ python-botocore-0.29.0+repack/botocore/awsrequest.py
+@@ -23,8 +23,8 @@
+ import logging
+ 
+ import six
+-from botocore.vendored.requests import models
+-from botocore.vendored.requests.sessions import REDIRECT_STATI
++from requests import models
++from requests.sessions import REDIRECT_STATI
+ 
+ from botocore.compat import HTTPHeaders, file_type
+ from botocore.exceptions import UnseekableStreamError
+--- python-botocore-0.29.0+repack.orig/botocore/credentials.py
++++ python-botocore-0.29.0+repack/botocore/credentials.py
+@@ -21,7 +21,7 @@
+ # IN THE SOFTWARE.
+ #
+ import os
+-from botocore.vendored import requests
++import requests
+ import logging
+ 
+ from six.moves import configparser
+--- python-botocore-0.29.0+repack.orig/botocore/endpoint.py
++++ python-botocore-0.29.0+repack/botocore/endpoint.py
+@@ -25,8 +25,8 @@ import logging
+ import time
+ import threading
+ 
+-from botocore.vendored.requests.sessions import Session
+-from botocore.vendored.requests.utils import get_environ_proxies
++from requests.sessions import Session
++from requests.utils import get_environ_proxies
+ import six
+ 
+ import botocore.response
+--- python-botocore-0.29.0+repack.orig/botocore/retryhandler.py
++++ python-botocore-0.29.0+repack/botocore/retryhandler.py
+@@ -25,8 +25,8 @@ import functools
+ import logging
+ from binascii import crc32
+ 
+-from botocore.vendored.requests import ConnectionError
+-from botocore.vendored.requests.packages.urllib3.exceptions import ClosedPoolError
++from requests import ConnectionError
++from urllib3.exceptions import ClosedPoolError
+ 
+ from botocore.exceptions import ChecksumError
+ 
