@@ -1,2 +1,3 @@
 version=3
+opts=dversionmangle=s/\+repack// \
 http://pypi.python.org/packages/source/b/botocore/botocore-(.*).tar.gz
