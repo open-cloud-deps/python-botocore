@@ -1,3 +1,10 @@
+python-botocore (0.29.0+repack-2) unstable; urgency=medium
+
+  * debian/watch: Add debian version mangle. 
+  * debian/control: Add python-requests to Depends. (Closes: #734382)
+
+ -- TANIGUCHI Takaki <takaki@debian.org>  Tue, 04 Feb 2014 18:28:43 +0900
+
 python-botocore (0.29.0+repack-1) unstable; urgency=medium
 
   * Remove duplicated code from upstream tarball.

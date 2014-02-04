@@ -15,7 +15,7 @@ Vcs-Browser: http://anonscm.debian.org/viewvc/python-apps/packages/python-botoco
 
 Package: python-botocore
 Architecture: all
-Depends: ${python:Depends}, ${misc:Depends}
+Depends: ${python:Depends}, python-requests, ${misc:Depends}
 Description: Low-level, data-driven core of boto 3 (Python 2)
  A low-level interface to a growing number of Amazon Web Services.
  The botocore package is the foundation for AWS-CLI.
@@ -24,7 +24,7 @@ Description: Low-level, data-driven core of boto 3 (Python 2)
 
 Package: python3-botocore
 Architecture: all
-Depends: ${python3:Depends}, ${misc:Depends}
+Depends: ${python3:Depends}, python3-requests, ${misc:Depends}
 Description: Low-level, data-driven core of boto 3 (Python 3)
  A low-level interface to a growing number of Amazon Web Services.
  The botocore package is the foundation for AWS-CLI.
