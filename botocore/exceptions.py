@@ -1,25 +1,16 @@
 # Copyright (c) 2012-2013 Mitch Garnaat http://garnaat.org/
-# Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright 2012-2014 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
-# Permission is hereby granted, free of charge, to any person obtaining a
-# copy of this software and associated documentation files (the
-# "Software"), to deal in the Software without restriction, including
-# without limitation the rights to use, copy, modify, merge, publish, dis-
-# tribute, sublicense, and/or sell copies of the Software, and to permit
-# persons to whom the Software is furnished to do so, subject to the fol-
-# lowing conditions:
+# Licensed under the Apache License, Version 2.0 (the "License"). You
+# may not use this file except in compliance with the License. A copy of
+# the License is located at
 #
-# The above copyright notice and this permission notice shall be included
-# in all copies or substantial portions of the Software.
+# http://aws.amazon.com/apache2.0/
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABIL-
-# ITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
-# SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-# IN THE SOFTWARE.
-#
+# or in the "license" file accompanying this file. This file is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+# ANY KIND, either express or implied. See the License for the specific
+# language governing permissions and limitations under the License.
 
 
 class BotoCoreError(Exception):
@@ -45,11 +36,32 @@ class DataNotFoundError(BotoCoreError):
     fmt = 'Unable to load data for: {data_path}'
 
 
+class ApiVersionNotFoundError(BotoCoreError):
+    """
+    The data associated with either that API version or a compatible one
+    could not be loaded.
+
+    :ivar path: The data path that the user attempted to load.
+    :ivar path: The API version that the user attempted to load.
+    """
+    fmt = 'Unable to load data {data_path} for: {api_version}'
+
+
 class NoCredentialsError(BotoCoreError):
     """
     No credentials could be found
     """
     fmt = 'Unable to locate credentials'
+
+
+class PartialCredentialsError(BotoCoreError):
+    """
+    Only partial credentials were found.
+
+    :ivar cred_var: The missing credential variable name.
+
+    """
+    fmt = 'Partial credentials found, missing: {cred_var}'
 
 
 class NoRegionError(BotoCoreError):
@@ -79,6 +91,18 @@ class ServiceNotInRegionError(BotoCoreError):
     :ivar region_name: The name of the region.
     """
     fmt = 'Service {service_name} not available in region {region_name}'
+
+
+class UnknownEndpointError(BotoCoreError):
+    """
+    Could not construct an endpoint.
+
+    :ivar service_name: The name of the service.
+    :ivar region_name: The name of the region.
+    """
+    fmt = (
+        'Unable to construct an endpoint for '
+        '{service_name} in region {region_name}')
 
 
 class ProfileNotFound(BotoCoreError):
@@ -222,3 +246,19 @@ class UnseekableStreamError(BotoCoreError):
 class WaiterError(BotoCoreError):
     """Waiter failed to reach desired state."""
     fmt = 'Waiter {name} failed: {reason}'
+
+
+class IncompleteReadError(BotoCoreError):
+    """HTTP response did not return expected number of bytes."""
+    fmt = ('{actual_bytes} read, but total bytes '
+           'expected is {expected_bytes}.')
+
+
+class InvalidExpressionError(BotoCoreError):
+    """Expression is either invalid or too complex."""
+    fmt = 'Invalid expression {expression}: Only dotted lookups are supported.'
+
+
+class UnknownCredentialError(BotoCoreError):
+    """Tried to insert before/after an unregistered credential type."""
+    fmt = 'Credential named {name} not found.'

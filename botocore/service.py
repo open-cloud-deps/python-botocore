@@ -1,25 +1,17 @@
 # Copyright (c) 2012-2013 Mitch Garnaat http://garnaat.org/
-# Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright 2012-2014 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
-# Permission is hereby granted, free of charge, to any person obtaining a
-# copy of this software and associated documentation files (the
-# "Software"), to deal in the Software without restriction, including
-# without limitation the rights to use, copy, modify, merge, publish, dis-
-# tribute, sublicense, and/or sell copies of the Software, and to permit
-# persons to whom the Software is furnished to do so, subject to the fol-
-# lowing conditions:
+# Licensed under the Apache License, Version 2.0 (the "License"). You
+# may not use this file except in compliance with the License. A copy of
+# the License is located at
 #
-# The above copyright notice and this permission notice shall be included
-# in all copies or substantial portions of the Software.
+# http://aws.amazon.com/apache2.0/
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABIL-
-# ITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
-# SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-# IN THE SOFTWARE.
-#
+# or in the "license" file accompanying this file. This file is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+# ANY KIND, either express or implied. See the License for the specific
+# language governing permissions and limitations under the License.
+
 import logging
 
 from .endpoint import get_endpoint
@@ -46,10 +38,14 @@ class Service(object):
     WAITER_CLASS = Waiter
 
     def __init__(self, session, provider, service_name,
-                 path='/', port=None):
+                 path='/', port=None, api_version=None):
         self.global_endpoint = None
         self.timestamp_format = 'iso8601'
-        sdata = session.get_service_data(service_name)
+        self.api_version = api_version
+        sdata = session.get_service_data(
+            service_name,
+            api_version=self.api_version
+        )
         self.__dict__.update(sdata)
         self._operations_data = self.__dict__.pop('operations')
         self._operations = None
@@ -58,10 +54,6 @@ class Service(object):
         self.path = path
         self.port = port
         self.cli_name = service_name
-        if not hasattr(self, 'metadata'):
-            # metadata is an option thing that comes from .extra.json
-            # so if it's not there we just default to an empty dict.
-            self.metadata = {}
 
     def _create_operation_objects(self):
         logger.debug("Creating operation objects for: %s", self)
@@ -82,24 +74,8 @@ class Service(object):
             self._operations = self._create_operation_objects()
         return self._operations
 
-    @property
-    def region_names(self):
-        return self.metadata.get('regions', {}).keys()
-
-    def _build_endpoint_url(self, host, is_secure):
-        if is_secure:
-            scheme = 'https'
-        else:
-            scheme = 'http'
-        if scheme not in self.metadata['protocols']:
-            raise ValueError('Unsupported protocol: %s' % scheme)
-        endpoint_url = '%s://%s%s' % (scheme, host, self.path)
-        if self.port:
-            endpoint_url += ':%d' % self.port
-        return endpoint_url
-
     def get_endpoint(self, region_name=None, is_secure=True,
-                     endpoint_url=None):
+                     endpoint_url=None, verify=None):
         """
         Return the Endpoint object for this service in a particular
         region.
@@ -122,55 +98,38 @@ class Service(object):
 
         """
         if region_name is None:
-            region_name = self.session.get_variable('region')
+            region_name = self.session.get_config_variable('region')
+        # Use the endpoint resolver heuristics to build the endpoint url.
+        resolver = self.session.get_component('endpoint_resolver')
+        scheme = 'https' if is_secure else 'http'
+        endpoint = resolver.construct_endpoint(
+            self.endpoint_prefix, region_name, scheme=scheme)
+        # We only support the credentialScope.region in the properties
+        # bag right now, so if it's available, it will override the
+        # provided region name.
+        region_name_override = endpoint['properties'].get(
+            'credentialScope', {}).get('region')
+        if region_name_override is not None:
+            # Letting the heuristics rule override the region_name
+            # allows for having a default region of something like us-west-2
+            # for IAM, but we still will know to use us-east-1 for sigv4.
+            region_name = region_name_override
         if endpoint_url is not None:
-            # Before getting into any of the region/endpoint
-            # logic, if an endpoint_url is explicitly
-            # provided, just use what's been explicitly passed in.
-            return self._get_endpoint(region_name, endpoint_url)
-        if region_name is None and not self.global_endpoint:
-            # The only time it's ok to *not* provide a region is
-            # if the service is a global_endpoint (e.g. IAM).
-            envvar_name = self.session.env_vars['region'][1]
-            raise NoRegionError(env_var=envvar_name)
-        if region_name not in self.region_names:
-            if self.global_endpoint:
-                # If we haven't provided a region_name and this is a global
-                # endpoint, we can just use the global_endpoint (which is a
-                # string of the hostname of the global endpoint) to construct
-                # the full endpoint_url.
-                endpoint_url = self._build_endpoint_url(self.global_endpoint,
-                                                        is_secure)
-                region_name = 'us-east-1'
-            else:
-                # Otherwise we've specified a region name that is
-                # not supported by the service so we raise
-                # an exception.
-                raise ServiceNotInRegionError(service_name=self.endpoint_prefix,
-                                              region_name=region_name)
-        # The 'regions' dict can call out the specific hostname
-        # to use for a particular region.  If this is the case,
-        # this will have precedence.
-        # TODO: It looks like the region_name overrides shouldn't have the
-        # protocol prefix.  Otherwise, it doesn't seem possible to override
-        # the hostname for a region *and* support both http/https.  Should
-        # be an easy change but it will be backwards incompatible to anyone
-        # creating their own service descriptions with region overrides.
-        endpoint_url = endpoint_url or self.metadata['regions'][region_name]
-        if endpoint_url is None:
-            # If the entry in the 'regions' dict is None,
-            # then we fall back to the patter of
-            # endpoint_prefix.region.amazonaws.com.
-            host = '%s.%s.amazonaws.com' % (self.endpoint_prefix, region_name)
-            endpoint_url = self._build_endpoint_url(host, is_secure)
-        return self._get_endpoint(region_name, endpoint_url)
+            # If the user provides an endpoint url, we'll use that
+            # instead of what the heuristics rule gives us.
+            final_endpoint_url = endpoint_url
+        else:
+            final_endpoint_url = endpoint['uri']
+        return self._get_endpoint(region_name, final_endpoint_url, verify)
 
-    def _get_endpoint(self, region_name, endpoint_url):
+    def _get_endpoint(self, region_name, endpoint_url, verify):
+        # This function is called once we know the region and endpoint url.
+        # region_name and endpoint_url are expected to be non-None.
         event = self.session.create_event('creating-endpoint',
                                           self.endpoint_prefix)
         self.session.emit(event, service=self, region_name=region_name,
                           endpoint_url=endpoint_url)
-        return get_endpoint(self, region_name, endpoint_url)
+        return get_endpoint(self, region_name, endpoint_url, verify)
 
     def get_operation(self, operation_name):
         """
@@ -195,7 +154,7 @@ class Service(object):
         return self.WAITER_CLASS(waiter_name, operation, config)
 
 
-def get_service(session, service_name, provider):
+def get_service(session, service_name, provider, api_version=None):
     """
     Return a Service object for a given provider name and service name.
 

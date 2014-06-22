@@ -1,3 +1,11 @@
+python-botocore (0.52.0-1) unstable; urgency=medium
+
+  * New upstream release
+  * debian/control: use Files-Excluded to remove duplicate code.
+  * debian/rules: revice python3 building.
+
+ -- TANIGUCHI Takaki <takaki@debian.org>  Sun, 22 Jun 2014 19:39:36 +0900
+
 python-botocore (0.29.0+repack-2) unstable; urgency=medium
 
   * debian/watch: Add debian version mangle. 

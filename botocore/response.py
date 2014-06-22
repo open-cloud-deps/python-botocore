@@ -1,31 +1,26 @@
 # Copyright (c) 2012-2013 Mitch Garnaat http://garnaat.org/
-# Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright 2012-2014 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
-# Permission is hereby granted, free of charge, to any person obtaining a
-# copy of this software and associated documentation files (the
-# "Software"), to deal in the Software without restriction, including
-# without limitation the rights to use, copy, modify, merge, publish, dis-
-# tribute, sublicense, and/or sell copies of the Software, and to permit
-# persons to whom the Software is furnished to do so, subject to the fol-
-# lowing conditions:
+# Licensed under the Apache License, Version 2.0 (the "License"). You
+# may not use this file except in compliance with the License. A copy of
+# the License is located at
 #
-# The above copyright notice and this permission notice shall be included
-# in all copies or substantial portions of the Software.
+# http://aws.amazon.com/apache2.0/
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABIL-
-# ITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
-# SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-# IN THE SOFTWARE.
-#
+# or in the "license" file accompanying this file. This file is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+# ANY KIND, either express or implied. See the License for the specific
+# language governing permissions and limitations under the License.
+
 import sys
 import xml.etree.cElementTree
-from botocore import ScalarTypes
-from .hooks import first_non_none_response
-from botocore.compat import json
 import logging
+
+from botocore import ScalarTypes
+from botocore.hooks import first_non_none_response
+from botocore.compat import json, set_socket_timeout, XMLParseError
+from botocore.exceptions import IncompleteReadError
+
 
 logger = logging.getLogger(__name__)
 
@@ -70,14 +65,30 @@ class XmlResponse(Response):
         return elem_tag
 
     def parse(self, s, encoding):
+        if self.operation.output:
+            self.build_element_map(self.operation.output, 'root')
         parser = xml.etree.cElementTree.XMLParser(
             target=xml.etree.cElementTree.TreeBuilder(),
             encoding=encoding)
-        parser.feed(s)
-        self.tree = parser.close()
-        if self.operation.output:
-            self.build_element_map(self.operation.output, 'root')
-        self.start(self.tree)
+        self.value = {}
+        try:
+            parser.feed(s)
+        except XMLParseError as e:
+            # Check the case where we have a single output member
+            # that has a single element that's a payload.
+            if self.operation.output and len(self.operation.output['members']) == 1:
+                members = self.operation.output['members']
+                member_name = list(members.keys())[0]
+                if members[member_name].get('payload'):
+                    # Then the final result is just a single key
+                    # whose value is the response body.
+                    self.value = {member_name: s, 'ResponseMetadata': {}}
+                return
+            else:
+                raise
+        else:
+            self.tree = parser.close()
+            self.start(self.tree)
 
     def get_response_metadata(self):
         rmd = {}
@@ -140,6 +151,9 @@ class XmlResponse(Response):
         child = parent.find(cn)
         if child is None:
             child = parent.find('*/%s' % cn)
+            if child is None \
+                    and parent.tag == cn:
+                child = parent
         return child
 
     def findall(self, parent, tag):
@@ -148,7 +162,7 @@ class XmlResponse(Response):
         if not children:
             try:
                 children = parent.findall('*/%s' % cn)
-            except:
+            except Exception:
                 pass
         return children
 
@@ -301,7 +315,6 @@ class XmlResponse(Response):
         return shape
 
     def start(self, elem):
-        self.value = {}
         if self.operation.output:
             for member_name in self.operation.output['members']:
                 member = self.operation.output['members'][member_name]
@@ -330,8 +343,22 @@ class XmlResponse(Response):
                 location = member.get('location')
                 if location == 'header':
                     location_name = member.get('location_name')
-                    if location_name in headers:
+                    if member['type'] == 'map':
+                        self._merge_map_header_values(headers, location_name,
+                                                      member_name, member)
+                    elif location_name in headers:
                         self.value[member_name] = headers[location_name]
+
+    def _merge_map_header_values(self, headers, location_name,
+                                 member_name, member):
+        final_map_value = {}
+        for header_name in headers:
+            if header_name.startswith(location_name):
+                header_value = headers[header_name]
+                actual_name = header_name[len(location_name):]
+                final_map_value[actual_name] = header_value
+        if final_map_value:
+            self.value[member_name] = final_map_value
 
 
 class JSONResponse(Response):
@@ -340,11 +367,10 @@ class JSONResponse(Response):
         try:
             decoded = s.decode(encoding)
             self.value = json.loads(decoded)
-            self.get_response_errors()
         except Exception as err:
             logger.debug('Error loading JSON response body, %r', err)
 
-    def get_response_errors(self):
+    def merge_header_values(self, headers):
         # Most JSON services return a __type in error response bodies.
         # Unfortunately, ElasticTranscoder does not.  It simply returns
         # a JSON body with a single key, "message".
@@ -353,13 +379,19 @@ class JSONResponse(Response):
             error_type = self.value['__type']
             error = {'Type': error_type}
             del self.value['__type']
-            if 'message' in self.value:
-                error['Message'] = self.value['message']
-                del self.value['message']
+            for key in ['message', 'Message']:
+                if key in self.value:
+                    error['Message'] = self.value[key]
+                    del self.value[key]
             code = self._parse_code_from_type(error_type)
             error['Code'] = code
         elif 'message' in self.value and len(self.value.keys()) == 1:
-            error = {'Type': 'Unspecified', 'Code': 'Unspecified',
+            error_type = 'Unspecified'
+            if headers and 'x-amzn-errortype' in headers:
+                # ElasticTranscoder suffixes errors with `:`, so we strip
+                # them off when possible.
+                error_type = headers.get('x-amzn-errortype').strip(':')
+            error = {'Type': error_type, 'Code': error_type,
                      'Message': self.value['message']}
             del self.value['message']
         if error:
@@ -388,6 +420,75 @@ class StreamingResponse(Response):
                         self.value[member_name] = stream
 
 
+class StreamingBody(object):
+    """Wrapper class for an http response body.
+
+    This provides a few additional conveniences that do not exist
+    in the urllib3 model:
+
+        * Set the timeout on the socket (i.e read() timeouts)
+        * Auto validation of content length, if the amount of bytes
+          we read does not match the content length, an exception
+          is raised.
+
+    """
+    def __init__(self, raw_stream, content_length):
+        self._raw_stream = raw_stream
+        self._content_length = content_length
+        self._amount_read = 0
+
+    def set_socket_timeout(self, timeout):
+        """Set the timeout seconds on the socket."""
+        # The problem we're trying to solve is to prevent .read() calls from
+        # hanging.  This can happen in rare cases.  What we'd like to ideally
+        # do is set a timeout on the .read() call so that callers can retry
+        # the request.
+        # Unfortunately, this isn't currently possible in requests.
+        # See: https://github.com/kennethreitz/requests/issues/1803
+        # So what we're going to do is reach into the guts of the stream and
+        # grab the socket object, which we can set the timeout on.  We're
+        # putting in a check here so in case this interface goes away, we'll
+        # know.
+        try:
+            # To further complicate things, the way to grab the
+            # underlying socket object from an HTTPResponse is different
+            # in py2 and py3.  So this code has been pushed to botocore.compat.
+            set_socket_timeout(self._raw_stream, timeout)
+        except AttributeError:
+            logger.error("Cannot access the socket object of "
+                         "a streaming response.  It's possible "
+                         "the interface has changed.", exc_info=True)
+            raise
+
+    def read(self, amt=None):
+        chunk = self._raw_stream.read(amt)
+        self._amount_read += len(chunk)
+        if not chunk or amt is None:
+            # If the server sends empty contents or
+            # we ask to read all of the contents, then we know
+            # we need to verify the content length.
+            self._verify_content_length()
+        return chunk
+
+    def _verify_content_length(self):
+        if self._content_length is not None and \
+                self._amount_read != int(self._content_length):
+            raise IncompleteReadError(
+                actual_bytes=self._amount_read,
+                expected_bytes=int(self._content_length))
+
+
+def _validate_content_length(expected_content_length, body_length):
+    # See: https://github.com/kennethreitz/requests/issues/1855
+    # Basically, our http library doesn't do this for us, so we have
+    # to do this ourself.
+    if expected_content_length is not None:
+        if int(expected_content_length) != body_length:
+            raise IncompleteReadError(
+                actual_bytes=body_length,
+                expected_bytes=int(expected_content_length))
+
+
 def get_response(session, operation, http_response):
     encoding = 'utf-8'
     if http_response.encoding:
@@ -397,12 +498,38 @@ def get_response(session, operation, http_response):
         content_type = content_type.split(';')[0]
         logger.debug('Content type from response: %s', content_type)
     if operation.is_streaming():
+        logger.debug(
+            "Response Headers:\n%s",
+            '\n'.join("%s: %s" % (k, v) for k, v in http_response.headers.items()))
         streaming_response = StreamingResponse(session, operation)
-        streaming_response.parse(http_response.headers, http_response.raw)
-        return (http_response, streaming_response.get_value())
+        streaming_response.parse(
+            http_response.headers,
+            StreamingBody(http_response.raw,
+                          http_response.headers.get('content-length')))
+        if http_response.ok:
+            return (http_response, streaming_response.get_value())
+        else:
+            xml_response = XmlResponse(session, operation)
+            body = streaming_response.get_value()['Body'].read()
+            # For streaming response, response body might be binary data,
+            # so we log response body only when error happens.
+            logger.debug("Response Body:\n%s", body)
+            if body:
+                try:
+                    xml_response.parse(body, encoding)
+                except xml.etree.cElementTree.ParseError as err:
+                    raise xml.etree.cElementTree.ParseError(
+                        "Error parsing XML response: %s\nXML received:\n%s" % (err, body))
+            return (http_response, xml_response.get_value())
     body = http_response.content
+    if not http_response.request.method == 'HEAD':
+        _validate_content_length(
+            http_response.headers.get('content-length'), len(body))
+    logger.debug(
+        "Response Headers:\n%s",
+        '\n'.join("%s: %s" % (k, v) for k, v in http_response.headers.items()))
     logger.debug("Response Body:\n%s", body)
-    if operation.service.type == 'json':
+    if operation.service.type in ('json', 'rest-json'):
         json_response = JSONResponse(session, operation)
         if body:
             json_response.parse(body, encoding)
