@@ -1,6 +1,7 @@
 Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: python-botocore
 Source: https://pypi.python.org/pypi/botocore
+Files-Excluded: botocore/vendored
 
 Files: *
 Copyright: Mitch Garnaat <garnaat@amazon.com>
