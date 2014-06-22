@@ -4,8 +4,7 @@
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
 
-export PYBUILD_DESTDIR_python2=debian/python-botocore/
-export PYBUILD_DESTDIR_python3=debian/python3-botocore/
+export PYBUILD_NAME=botocore
 
 %:
 	dh $@ --with python2,python3 --buildsystem=pybuild
