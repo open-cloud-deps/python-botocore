@@ -20,10 +20,10 @@ Forwarded: <no|not-needed|url proving that it has been forwarded>
 Reviewed-By: <name and email of someone who approved the patch>
 Last-Update: <YYYY-MM-DD>
 
-Index: python-botocore-0.52.0/botocore/endpoint.py
+Index: python-botocore-0.62.0/botocore/endpoint.py
 ===================================================================
---- python-botocore-0.52.0.orig/botocore/endpoint.py	2014-06-22 19:12:55.888338509 +0900
-+++ python-botocore-0.52.0/botocore/endpoint.py	2014-06-22 19:12:55.884338571 +0900
+--- python-botocore-0.62.0.orig/botocore/endpoint.py	2014-09-04 11:53:11.603921152 +0900
++++ python-botocore-0.62.0/botocore/endpoint.py	2014-09-04 11:53:11.583921657 +0900
 @@ -17,8 +17,8 @@
  import time
  import threading
@@ -35,25 +35,25 @@ Index: python-botocore-0.52.0/botocore/endpoint.py
  import six
  
  import botocore.response
-Index: python-botocore-0.52.0/botocore/retryhandler.py
+Index: python-botocore-0.62.0/botocore/retryhandler.py
 ===================================================================
---- python-botocore-0.52.0.orig/botocore/retryhandler.py	2014-06-22 19:12:55.888338509 +0900
-+++ python-botocore-0.52.0/botocore/retryhandler.py	2014-06-22 19:12:55.884338571 +0900
+--- python-botocore-0.62.0.orig/botocore/retryhandler.py	2014-09-04 11:53:11.603921152 +0900
++++ python-botocore-0.62.0/botocore/retryhandler.py	2014-09-04 11:55:06.209047860 +0900
 @@ -17,8 +17,8 @@
  import logging
  from binascii import crc32
  
--from botocore.vendored.requests import ConnectionError
+-from botocore.vendored.requests import ConnectionError, Timeout
 -from botocore.vendored.requests.packages.urllib3.exceptions import ClosedPoolError
-+from requests import ConnectionError
++from requests import ConnectionError, Timeout
 +from urllib3.exceptions import ClosedPoolError
  
  from botocore.exceptions import ChecksumError
  
-Index: python-botocore-0.52.0/botocore/awsrequest.py
+Index: python-botocore-0.62.0/botocore/awsrequest.py
 ===================================================================
---- python-botocore-0.52.0.orig/botocore/awsrequest.py	2014-06-22 19:12:55.888338509 +0900
-+++ python-botocore-0.52.0/botocore/awsrequest.py	2014-06-22 19:13:52.571480844 +0900
+--- python-botocore-0.62.0.orig/botocore/awsrequest.py	2014-09-04 11:53:11.603921152 +0900
++++ python-botocore-0.62.0/botocore/awsrequest.py	2014-09-04 11:53:11.587921553 +0900
 @@ -17,14 +17,14 @@
  import inspect
  
@@ -75,15 +75,15 @@ Index: python-botocore-0.52.0/botocore/awsrequest.py
  
  
  logger = logging.getLogger(__name__)
-Index: python-botocore-0.52.0/botocore/utils.py
+Index: python-botocore-0.62.0/botocore/utils.py
 ===================================================================
---- python-botocore-0.52.0.orig/botocore/utils.py	2014-06-20 06:28:15.000000000 +0900
-+++ python-botocore-0.52.0/botocore/utils.py	2014-06-22 19:15:44.709784035 +0900
-@@ -15,7 +15,7 @@
+--- python-botocore-0.62.0.orig/botocore/utils.py	2014-09-04 11:53:11.603921152 +0900
++++ python-botocore-0.62.0/botocore/utils.py	2014-09-04 11:54:04.814583384 +0900
+@@ -16,7 +16,7 @@
  
- from .exceptions import InvalidExpressionError, ConfigNotFound
- from .compat import json
--from .vendored import requests
+ from botocore.exceptions import InvalidExpressionError, ConfigNotFound
+ from botocore.compat import json, quote
+-from botocore.vendored import requests
 +import requests
  
  
