@@ -1,6 +1,9 @@
 python-botocore (0.69.0-1) UNRELEASED; urgency=medium
 
   * New upstream release
+  * debian/pathces: refresh
+  * Bump Standards-Version to 3.9.6 (no changes).
+  * Add dh-python to B-D.
 
  -- TANIGUCHI Takaki <takaki@debian.org>  Wed, 05 Nov 2014 09:33:47 +0900
 
