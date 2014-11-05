@@ -20,10 +20,10 @@ Forwarded: <no|not-needed|url proving that it has been forwarded>
 Reviewed-By: <name and email of someone who approved the patch>
 Last-Update: <YYYY-MM-DD>
 
-Index: python-botocore-0.62.0/botocore/endpoint.py
+Index: python-botocore-0.69.0/botocore/endpoint.py
 ===================================================================
---- python-botocore-0.62.0.orig/botocore/endpoint.py	2014-09-04 11:53:11.603921152 +0900
-+++ python-botocore-0.62.0/botocore/endpoint.py	2014-09-04 11:53:11.583921657 +0900
+--- python-botocore-0.69.0.orig/botocore/endpoint.py	2014-11-05 09:35:21.714078645 +0900
++++ python-botocore-0.69.0/botocore/endpoint.py	2014-11-05 09:35:21.710078697 +0900
 @@ -17,8 +17,8 @@
  import time
  import threading
@@ -35,10 +35,10 @@ Index: python-botocore-0.62.0/botocore/endpoint.py
  import six
  
  import botocore.response
-Index: python-botocore-0.62.0/botocore/retryhandler.py
+Index: python-botocore-0.69.0/botocore/retryhandler.py
 ===================================================================
---- python-botocore-0.62.0.orig/botocore/retryhandler.py	2014-09-04 11:53:11.603921152 +0900
-+++ python-botocore-0.62.0/botocore/retryhandler.py	2014-09-04 11:55:06.209047860 +0900
+--- python-botocore-0.69.0.orig/botocore/retryhandler.py	2014-11-05 09:35:21.714078645 +0900
++++ python-botocore-0.69.0/botocore/retryhandler.py	2014-11-05 09:35:21.710078697 +0900
 @@ -17,8 +17,8 @@
  import logging
  from binascii import crc32
@@ -50,11 +50,11 @@ Index: python-botocore-0.62.0/botocore/retryhandler.py
  
  from botocore.exceptions import ChecksumError
  
-Index: python-botocore-0.62.0/botocore/awsrequest.py
+Index: python-botocore-0.69.0/botocore/awsrequest.py
 ===================================================================
---- python-botocore-0.62.0.orig/botocore/awsrequest.py	2014-09-04 11:53:11.603921152 +0900
-+++ python-botocore-0.62.0/botocore/awsrequest.py	2014-09-04 11:53:11.587921553 +0900
-@@ -17,14 +17,14 @@
+--- python-botocore-0.69.0.orig/botocore/awsrequest.py	2014-11-05 09:35:21.714078645 +0900
++++ python-botocore-0.69.0/botocore/awsrequest.py	2014-11-05 09:36:25.553245163 +0900
+@@ -19,14 +19,14 @@
  import inspect
  
  import six
@@ -62,29 +62,29 @@ Index: python-botocore-0.62.0/botocore/awsrequest.py
 -from botocore.vendored.requests.sessions import REDIRECT_STATI
 +from requests import models
 +from requests.sessions import REDIRECT_STATI
- from botocore.compat import HTTPHeaders, file_type, HTTPResponse
+ from botocore.compat import HTTPHeaders, HTTPResponse
  from botocore.exceptions import UnseekableStreamError
 -from botocore.vendored.requests.packages.urllib3.connection import VerifiedHTTPSConnection
 -from botocore.vendored.requests.packages.urllib3.connection import HTTPConnection
 -from botocore.vendored.requests.packages.urllib3.connectionpool import HTTPConnectionPool
 -from botocore.vendored.requests.packages.urllib3.connectionpool import HTTPSConnectionPool
 +from urllib3.connection import VerifiedHTTPSConnection
-+from urllib3.connection import HTTPConnection
-+from urllib3.connectionpool import HTTPConnectionPool
-+from urllib3.connectionpool import HTTPSConnectionPool
++from requests.packages.urllib3.connection import HTTPConnection
++from requests.packages.urllib3.connectionpool import HTTPConnectionPool
++from requests.packages.urllib3.connectionpool import HTTPSConnectionPool
  
  
  logger = logging.getLogger(__name__)
-Index: python-botocore-0.62.0/botocore/utils.py
+Index: python-botocore-0.69.0/botocore/utils.py
 ===================================================================
---- python-botocore-0.62.0.orig/botocore/utils.py	2014-09-04 11:53:11.603921152 +0900
-+++ python-botocore-0.62.0/botocore/utils.py	2014-09-04 11:54:04.814583384 +0900
-@@ -16,7 +16,7 @@
+--- python-botocore-0.69.0.orig/botocore/utils.py	2014-11-05 09:35:21.714078645 +0900
++++ python-botocore-0.69.0/botocore/utils.py	2014-11-05 09:36:52.764889848 +0900
+@@ -19,7 +19,7 @@
  
  from botocore.exceptions import InvalidExpressionError, ConfigNotFound
  from botocore.compat import json, quote
 -from botocore.vendored import requests
 +import requests
+ from botocore.compat import OrderedDict
  
  
- logger = logging.getLogger(__name__)
