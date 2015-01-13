@@ -10,39 +10,29 @@
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
+import copy
+
 from botocore.model import ServiceModel
-from botocore.exceptions import ParamValidationError
 from botocore.exceptions import DataNotFoundError
 from botocore.exceptions import OperationNotPageableError
+from botocore.exceptions import ClientError
 from botocore import waiter
 from botocore import xform_name
 from botocore.paginate import Paginator
-from botocore import translate
+from botocore.utils import CachedProperty
 import botocore.validate
 import botocore.serialize
 from botocore import credentials
 
 
-class ClientError(Exception):
-    MSG_TEMPLATE = (
-        'An error occurred ({error_code}) when calling the {operation_name} '
-        'operation: {error_message}')
-
-    def __init__(self, error_response, operation_name):
-        msg = self.MSG_TEMPLATE.format(
-            error_code=error_response['Error']['Code'],
-            error_message=error_response['Error']['Message'],
-            operation_name=operation_name)
-        super(ClientError, self).__init__(msg)
-        self.response = error_response
-
-
 class ClientCreator(object):
     """Creates client objects for a service."""
-    def __init__(self, loader, endpoint_creator, event_emitter):
+    def __init__(self, loader, endpoint_creator, event_emitter,
+                 response_parser_factory=None):
         self._loader = loader
         self._endpoint_creator = endpoint_creator
         self._event_emitter = event_emitter
+        self._response_parser_factory = response_parser_factory
 
     def create_client(self, service_name, region_name, is_secure=True,
                       endpoint_url=None, verify=None,
@@ -118,7 +108,7 @@ class ClientCreator(object):
             if 'page_config' not in self._cache:
                 try:
                     page_config = loader.load_data('aws/%s/%s.paginators' % (
-                        service_model.endpoint_prefix,
+                        service_model.service_name,
                         service_model.api_version))['pagination']
                     self._cache['page_config'] = page_config
                 except DataNotFoundError:
@@ -138,41 +128,45 @@ class ClientCreator(object):
             if 'waiter_config' not in self._cache:
                 try:
                     waiter_config = loader.load_data('aws/%s/%s.waiters' % (
-                        service_model.endpoint_prefix,
-                        service_model.api_version))['waiters']
-                    self._cache['waiter_config'] = translate.denormalize_waiters(
-                        waiter_config)
+                        service_model.service_name,
+                        service_model.api_version))
+                    self._cache['waiter_config'] = waiter_config
                 except DataNotFoundError:
                     self._cache['waiter_config'] = {}
             return self._cache['waiter_config']
 
         def get_waiter(self, waiter_name):
             config = self._get_waiter_config()
+            if not config:
+                raise ValueError("Waiter does not exist: %s" % waiter_name)
+            model = waiter.WaiterModel(config)
             mapping = {}
-            for name in config:
+            for name in model.waiter_names:
                 mapping[xform_name(name)] = name
             if waiter_name not in mapping:
                 raise ValueError("Waiter does not exist: %s" % waiter_name)
-            single_waiter_config = config[mapping[waiter_name]]
-            return waiter.Waiter(
-                waiter_name,
-                getattr(self, xform_name(single_waiter_config['operation'])),
-                single_waiter_config)
 
-        def all_waiters(self):
+            return waiter.create_waiter_with_client(
+                mapping[waiter_name], model, self)
+
+        @CachedProperty
+        def waiter_names(self):
             """Returns a list of all available waiters."""
-            all_waiters = self._get_waiter_config()
+            config = self._get_waiter_config()
+            if not config:
+                return[]
+            model = waiter.WaiterModel(config)
             # Waiter configs is a dict, we just want the waiter names
             # which are the keys in the dict.
-            return [xform_name(name) for name in all_waiters]
+            return [xform_name(name) for name in model.waiter_names]
 
         methods_dict['_get_waiter_config'] = _get_waiter_config
         methods_dict['get_waiter'] = get_waiter
-        methods_dict['all_waiters'] = all_waiters
+        methods_dict['waiter_names'] = waiter_names
 
     def _load_service_model(self, service_name):
         json_model = self._loader.load_service_model('aws/%s' % service_name)
-        service_model = ServiceModel(json_model)
+        service_model = ServiceModel(json_model, service_name=service_name)
         return service_model
 
     def _get_client_args(self, service_model, region_name, is_secure,
@@ -195,13 +189,14 @@ class ClientCreator(object):
         endpoint = self._endpoint_creator.create_endpoint(
             service_model, region_name, is_secure=is_secure,
             endpoint_url=endpoint_url, verify=verify,
-            credentials=creds)
+            credentials=creds,
+            response_parser_factory=self._response_parser_factory)
         response_parser = botocore.parsers.create_parser(protocol)
         return {
             'serializer': serializer,
             'endpoint': endpoint,
             'response_parser': response_parser,
-            'event_emitter': self._event_emitter,
+            'event_emitter': copy.copy(self._event_emitter),
         }
 
     def _create_methods(self, service_model):
@@ -225,16 +220,18 @@ class ClientCreator(object):
                            service_model):
         def _api_call(self, **kwargs):
             operation_model = service_model.operation_model(operation_name)
-            self._event_emitter.emit(
-                'before-parameter-build.{endpoint_prefix}.{operation_name}'\
-                    .format(endpoint_prefix=service_model.endpoint_prefix,
-                            operation_name=operation_name),
+            event_name = (
+                'before-parameter-build.{endpoint_prefix}.{operation_name}')
+            self.meta.events.emit(
+                event_name.format(
+                    endpoint_prefix=service_model.endpoint_prefix,
+                    operation_name=operation_name),
                 params=kwargs, model=operation_model)
 
             request_dict = self._serializer.serialize_to_request(
                 kwargs, operation_model)
 
-            self._event_emitter.emit(
+            self.meta.events.emit(
                 'before-call.{endpoint_prefix}.{operation_name}'.format(
                     endpoint_prefix=service_model.endpoint_prefix,
                     operation_name=operation_name),
@@ -244,7 +241,7 @@ class ClientCreator(object):
             http, parsed_response = self._endpoint.make_request(
                 operation_model, request_dict)
 
-            self._event_emitter.emit(
+            self.meta.events.emit(
                 'after-call.{endpoint_prefix}.{operation_name}'.format(
                     endpoint_prefix=service_model.endpoint_prefix,
                     operation_name=operation_name),
@@ -269,5 +266,55 @@ class BaseClient(object):
         self._serializer = serializer
         self._endpoint = endpoint
         self._response_parser = response_parser
-        self._event_emitter = event_emitter
         self._cache = {}
+        self.meta = ClientMeta(event_emitter)
+
+    def clone_client(self, serializer=None, endpoint=None,
+                     response_parser=None):
+        """Create a copy of the client object.
+
+        This method will create a clone of an existing client.  By default, the
+        same internal attributes are used when creating a clone of the client,
+        with the exception of the event emitter. A copy of the event handlers
+        are created when a clone of the client is created.
+
+        You can also provide any of the above arguments as an override.  This
+        allows you to create a client that has the same values except for the
+        args you pass in as overrides.
+
+        :return: A new copy of the botocore client.
+
+        """
+        kwargs = {
+            'serializer': serializer,
+            'endpoint': endpoint,
+            'response_parser': response_parser,
+        }
+        for key, value in kwargs.items():
+            if value is None:
+                kwargs[key] = getattr(self, '_%s' % key)
+        # This will be swapped out in the ClientMeta class.
+        kwargs['event_emitter'] = None
+        new_object = self.__class__(**kwargs)
+        new_object.meta = copy.copy(self.meta)
+        return new_object
+
+
+class ClientMeta(object):
+    """Holds additional client methods.
+
+    This class holds additional information for clients.  It exists for
+    two reasons:
+
+        * To give advanced functionality to clients
+        * To namespace additional client attributes from the operation
+          names which are mapped to methods at runtime.  This avoids
+          ever running into collisions with operation names.
+
+    """
+
+    def __init__(self, events):
+        self.events = events
+
+    def __copy__(self):
+        return ClientMeta(**copy.deepcopy(self.__dict__))

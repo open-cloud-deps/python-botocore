@@ -41,12 +41,12 @@ import re
 import time
 import base64
 from xml.etree import ElementTree
+import calendar
 
-from dateutil.tz import tzutc
-import six
+from botocore.compat import six
 
 from botocore.compat import json, formatdate
-from botocore.utils import parse_timestamp
+from botocore.utils import parse_timestamp, parse_to_aware_datetime
 from botocore.utils import percent_encode
 from botocore import validate
 
@@ -131,18 +131,34 @@ class Serializer(object):
             timestamp_format = ISO8601_MICRO
         else:
             timestamp_format = ISO8601
-        return value.astimezone(tzutc()).strftime(timestamp_format)
+        return value.strftime(timestamp_format)
 
     def _timestamp_unixtimestamp(self, value):
-        return int(time.mktime(value.timetuple()))
+        return int(calendar.timegm(value.timetuple()))
 
     def _timestamp_rfc822(self, value):
         return formatdate(value)
+
+    def _convert_timestamp_to_str(self, value):
+        datetime_obj = parse_to_aware_datetime(value)
+        converter = getattr(
+            self, '_timestamp_%s' % self.TIMESTAMP_FORMAT.lower())
+        final_value = converter(datetime_obj)
+        return final_value
 
     def _get_serialized_name(self, shape, default_name):
         # Returns the serialized name for the shape if it exists.
         # Otherwise it will return the passed in default_name.
         return shape.serialization.get('name', default_name)
+
+    def _get_base64(self, value):
+        # Returns the base64-encoded version of value, handling
+        # both strings and bytes. The returned value is a string
+        # via the default encoding.
+        if isinstance(value, six.text_type):
+            value = value.encode(self.DEFAULT_ENCODING)
+        return base64.b64encode(value).strip().decode(
+            self.DEFAULT_ENCODING)
 
 
 class QuerySerializer(Serializer):
@@ -221,23 +237,10 @@ class QuerySerializer(Serializer):
 
     def _serialize_type_blob(self, serialized, value, shape, prefix=''):
         # Blob args must be base64 encoded.
-        if not isinstance(value, six.text_type):
-            b64_encoded = base64.b64encode(value).strip().decode(
-                self.DEFAULT_ENCODING)
-        else:
-            # The utf-8 encode/decode is so that we serialize the value
-            # as a str type in py3.
-            b64_encoded = base64.b64encode(
-                value.encode(self.DEFAULT_ENCODING)).strip().decode(
-                    self.DEFAULT_ENCODING)
-        serialized[prefix] = b64_encoded
+        serialized[prefix] = self._get_base64(value)
 
     def _serialize_type_timestamp(self, serialized, value, shape, prefix=''):
-        datetime_obj = parse_timestamp(value)
-        converter = getattr(
-            self, '_timestamp_%s' % self.TIMESTAMP_FORMAT.lower())
-        final_value = converter(datetime_obj)
-        serialized[prefix] = final_value
+        serialized[prefix] = self._convert_timestamp_to_str(value)
 
     def _serialize_type_boolean(self, serialized, value, shape, prefix=''):
         if value:
@@ -282,6 +285,8 @@ class EC2Serializer(QuerySerializer):
 
 
 class JSONSerializer(Serializer):
+    TIMESTAMP_FORMAT = 'unixtimestamp'
+
     def serialize_to_request(self, parameters, operation_model):
         target = '%s.%s' % (operation_model.metadata['targetPrefix'],
                             operation_model.name)
@@ -293,8 +298,47 @@ class JSONSerializer(Serializer):
             'X-Amz-Target': target,
             'Content-Type': 'application/x-amz-json-%s' % json_version,
         }
-        serialized['body'] = json.dumps(parameters)
+        body = {}
+        input_shape = operation_model.input_shape
+        if input_shape is not None:
+            self._serialize(body, parameters, input_shape)
+        serialized['body'] = json.dumps(body)
         return serialized
+
+    def _serialize(self, serialized, value, shape, key=None):
+        method = getattr(self, '_serialize_type_%s' % shape.type_name,
+                         self._default_serialize)
+        method(serialized, value, shape, key)
+
+    def _serialize_type_structure(self, serialized, value, shape, key):
+        if key is not None:
+            # If a key is provided, this is a result of a recursive
+            # call so we need to add a new child dict as the value
+            # of the passed in serialized dict.  We'll then add
+            # all the structure members as key/vals in the new serialized
+            # dictionary we just created.
+            new_serialized = {}
+            serialized[key] = new_serialized
+            serialized = new_serialized
+        members = shape.members
+        for member_key, member_value in value.items():
+            member_shape = members[member_key]
+            self._serialize(serialized, member_value, member_shape, member_key)
+
+    def _serialize_type_map(self, serialized, value, shape, key):
+        map_obj = self.MAP_TYPE()
+        serialized[key] = map_obj
+        for sub_key, sub_value in value.items():
+            self._serialize(map_obj, sub_value, shape.value, sub_key)
+
+    def _default_serialize(self, serialized, value, shape, key):
+        serialized[key] = value
+
+    def _serialize_type_timestamp(self, serialized, value, shape, key):
+        serialized[key] = self._convert_timestamp_to_str(value)
+
+    def _serialize_type_blob(self, serialized, value, shape, key):
+        serialized[key] = self._get_base64(value)
 
 
 class BaseRestSerializer(Serializer):
@@ -535,22 +579,12 @@ class RestXMLSerializer(BaseRestSerializer):
         node.text = str_value
 
     def _serialize_type_blob(self, xmlnode, params, shape, name):
-        # TODO: Double check the bytes vs. str bit.  Can they
-        # pass through binary content?
-        encoded_value = base64.b64encode(
-            params.encode(self.DEFAULT_ENCODING)).strip().decode(
-                self.DEFAULT_ENCODING)
         node = ElementTree.SubElement(xmlnode, name)
-        node.text = encoded_value
+        node.text = self._get_base64(params)
 
     def _serialize_type_timestamp(self, xmlnode, params, shape, name):
-        datetime_obj = parse_timestamp(params)
-        converter = getattr(
-            self, '_timestamp_%s' % self.TIMESTAMP_FORMAT.lower())
-
-        final_value = converter(datetime_obj)
         node = ElementTree.SubElement(xmlnode, name)
-        node.text = final_value
+        node.text = self._convert_timestamp_to_str(params)
 
     def _default_serialize(self, xmlnode, params, shape, name):
         node = ElementTree.SubElement(xmlnode, name)

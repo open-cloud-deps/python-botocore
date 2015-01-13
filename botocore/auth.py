@@ -22,8 +22,7 @@ from email.utils import formatdate
 from operator import itemgetter
 import functools
 import time
-
-import six
+import calendar
 
 from botocore.exceptions import NoCredentialsError
 from botocore.utils import normalize_url_path, percent_encode_sequence
@@ -31,6 +30,7 @@ from botocore.compat import HTTPHeaders
 from botocore.compat import quote, unquote, urlsplit, parse_qs
 from botocore.compat import urlunsplit
 from botocore.compat import encodebytes
+from botocore.compat import six
 
 logger = logging.getLogger(__name__)
 
@@ -114,9 +114,12 @@ class SigV3Auth(BaseSigner):
     def add_auth(self, request):
         if self.credentials is None:
             raise NoCredentialsError
-        if 'Date' not in request.headers:
-            request.headers['Date'] = formatdate(usegmt=True)
+        if 'Date' in request.headers:
+            del request.headers['Date']
+        request.headers['Date'] = formatdate(usegmt=True)
         if self.credentials.token:
+            if 'X-Amz-Security-Token' in request.headers:
+                del request.headers['X-Amz-Security-Token']
             request.headers['X-Amz-Security-Token'] = self.credentials.token
         new_hmac = hmac.new(self.credentials.secret_key.encode('utf-8'),
                             digestmod=sha256)
@@ -125,6 +128,8 @@ class SigV3Auth(BaseSigner):
         signature = ('AWS3-HTTPS AWSAccessKeyId=%s,Algorithm=%s,Signature=%s' %
                      (self.credentials.access_key, 'HmacSHA256',
                       encoded_signature.decode('utf-8')))
+        if 'X-Amzn-Authorization' in request.headers:
+            del request.headers['X-Amzn-Authorization']
         request.headers['X-Amzn-Authorization'] = signature
 
 
@@ -139,8 +144,8 @@ class SigV4Auth(BaseSigner):
         # We initialize these value here so the unit tests can have
         # valid values.  But these will get overriden in ``add_auth``
         # later for real requests.
-        now = datetime.datetime.utcnow()
-        self.timestamp = now.strftime('%Y%m%dT%H%M%SZ')
+        self._now = datetime.datetime.utcnow()
+        self.timestamp = self._now.strftime('%Y%m%dT%H%M%SZ')
         self._region_name = region_name
         self._service_name = service_name
 
@@ -192,17 +197,15 @@ class SigV4Auth(BaseSigner):
         if parts.query:
             qsa = parts.query.split('&')
             qsa = [a.split('=', 1) for a in qsa]
-            quoted_qsa = []
+            split_qsa = []
             for q in qsa:
                 if len(q) == 2:
-                    quoted_qsa.append(
-                        '%s=%s' % (quote(q[0], safe='-_.~'),
-                                   quote(unquote(q[1]), safe='-_.~')))
+                    split_qsa.append('%s=%s' % (q[0], q[1]))
                 elif len(q) == 1:
-                    quoted_qsa.append('%s=' % quote(q[0], safe='-_.~'))
-            if len(quoted_qsa) > 0:
-                quoted_qsa.sort()
-                buf += '&'.join(quoted_qsa)
+                    split_qsa.append('%s=' % q[0])
+            if len(split_qsa) > 0:
+                split_qsa.sort()
+                buf += '&'.join(split_qsa)
         return buf
 
     def canonical_headers(self, headers_to_sign):
@@ -301,8 +304,8 @@ class SigV4Auth(BaseSigner):
         if self.credentials is None:
             raise NoCredentialsError
         # Create a new timestamp for each signing event
-        now = datetime.datetime.utcnow()
-        self.timestamp = now.strftime('%Y%m%dT%H%M%SZ')
+        self._now = datetime.datetime.utcnow()
+        self.timestamp = self._now.strftime('%Y%m%dT%H%M%SZ')
         # This could be a retry.  Make sure the previous
         # authorization header is removed first.
         self._modify_request_before_signing(request)
@@ -327,16 +330,34 @@ class SigV4Auth(BaseSigner):
     def _modify_request_before_signing(self, request):
         if 'Authorization' in request.headers:
             del request.headers['Authorization']
-        if 'Date' not in request.headers:
-            request.headers['X-Amz-Date'] = self.timestamp
+        self._set_necessary_date_headers(request)
         if self.credentials.token:
+            if 'X-Amz-Security-Token' in request.headers:
+                del request.headers['X-Amz-Security-Token']
             request.headers['X-Amz-Security-Token'] = self.credentials.token
+
+    def _set_necessary_date_headers(self, request):
+        # The spec allows for either the Date _or_ the X-Amz-Date value to be
+        # used so we check both.  If there's a Date header, we use the date
+        # header.  Otherwise we use the X-Amz-Date header.
+        if 'Date' in request.headers:
+            del request.headers['Date']
+            request.headers['Date'] = formatdate(
+                int(calendar.timegm(self._now.timetuple())))
+            if 'X-Amz-Date' in request.headers:
+                del request.headers['X-Amz-Date']
+        else:
+            if 'X-Amz-Date' in request.headers:
+                del request.headers['X-Amz-Date']
+            request.headers['X-Amz-Date'] = self.timestamp
 
 
 class S3SigV4Auth(SigV4Auth):
 
     def _modify_request_before_signing(self, request):
         super(S3SigV4Auth, self)._modify_request_before_signing(request)
+        if 'X-Amz-Content-SHA256' in request.headers:
+            del request.headers['X-Amz-Content-SHA256']
         request.headers['X-Amz-Content-SHA256'] = self.payload(request)
 
     def _normalize_url_path(self, path):
@@ -452,7 +473,6 @@ class HmacV1Auth(BaseSigner):
 
     def __init__(self, credentials, service_name=None, region_name=None):
         self.credentials = credentials
-        self.auth_path = None  # see comment in canonical_resource below
 
     def sign_string(self, string_to_sign):
         new_hmac = hmac.new(self.credentials.secret_key.encode('utf-8'),
@@ -463,8 +483,9 @@ class HmacV1Auth(BaseSigner):
     def canonical_standard_headers(self, headers):
         interesting_headers = ['content-md5', 'content-type', 'date']
         hoi = []
-        if 'Date' not in headers:
-            headers['Date'] = formatdate(usegmt=True)
+        if 'Date' in headers:
+            del headers['Date']
+        headers['Date'] = formatdate(usegmt=True)
         for ih in interesting_headers:
             found = False
             for key in headers:
@@ -499,7 +520,7 @@ class HmacV1Auth(BaseSigner):
         else:
             return (nv[0], unquote(nv[1]))
 
-    def canonical_resource(self, split):
+    def canonical_resource(self, split, auth_path=None):
         # don't include anything after the first ? in the resource...
         # unless it is one of the QSA of interest, defined above
         # NOTE:
@@ -508,8 +529,8 @@ class HmacV1Auth(BaseSigner):
         # style addressing.  The ``auth_path`` keeps track of the full
         # path for the canonical resource and would be passed in if
         # the client was using virtual-hosting style.
-        if self.auth_path:
-            buf = self.auth_path
+        if auth_path is not None:
+            buf = auth_path
         else:
             buf = split.path
         if split.query:
@@ -524,21 +545,25 @@ class HmacV1Auth(BaseSigner):
                 buf += '&'.join(qsa)
         return buf
 
-    def canonical_string(self, method, split, headers, expires=None):
+    def canonical_string(self, method, split, headers, expires=None,
+                         auth_path=None):
         cs = method.upper() + '\n'
         cs += self.canonical_standard_headers(headers) + '\n'
         custom_headers = self.canonical_custom_headers(headers)
         if custom_headers:
             cs += custom_headers + '\n'
-        cs += self.canonical_resource(split)
+        cs += self.canonical_resource(split, auth_path=auth_path)
         return cs
 
-    def get_signature(self, method, split, headers, expires=None):
+    def get_signature(self, method, split, headers, expires=None,
+                      auth_path=None):
         if self.credentials.token:
+            del headers['x-amz-security-token']
             headers['x-amz-security-token'] = self.credentials.token
         string_to_sign = self.canonical_string(method,
                                                split,
-                                               headers)
+                                               headers,
+                                               auth_path=auth_path)
         logger.debug('StringToSign:\n%s', string_to_sign)
         return self.sign_string(string_to_sign)
 
@@ -549,7 +574,16 @@ class HmacV1Auth(BaseSigner):
         split = urlsplit(request.url)
         logger.debug('HTTP request method: %s', request.method)
         signature = self.get_signature(request.method, split,
-                                       request.headers)
+                                       request.headers,
+                                       auth_path=request.auth_path)
+        if 'Authorization' in request.headers:
+            # We have to do this because request.headers is not
+            # normal dictionary.  It has the (unintuitive) behavior
+            # of aggregating repeated setattr calls for the same
+            # key value.  For example:
+            # headers['foo'] = 'a'; headers['foo'] = 'b'
+            # list(headers) will print ['foo', 'foo'].
+            del request.headers['Authorization']
         request.headers['Authorization'] = (
             "AWS %s:%s" % (self.credentials.access_key, signature))
 
