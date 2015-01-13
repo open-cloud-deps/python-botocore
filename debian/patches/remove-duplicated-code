@@ -1,10 +1,13 @@
-Description: Remove duplicate code
- Upstream code contains duplicate code (requests and urllib3).
- Remove this code from orig-tarball and modify import directives.
+Description: <short summary of the patch>
+ TODO: Put a short summary on the line above and replace this paragraph
+ with a longer explanation of this change. Complete the meta-information
+ with other relevant fields (see below for details). To make it easier, the
+ information below has been extracted from the changelog. Adjust it or drop
+ it.
  .
- python-botocore (0.29.0+repack-1) UNRELEASED; urgency=medium
+ python-botocore (0.81.0-1) UNRELEASED; urgency=medium
  .
-   * Remove duplicated code from upstream tarball.
+   * New upstream release
 Author: TANIGUCHI Takaki <takaki@debian.org>
 
 ---
@@ -14,50 +17,18 @@ are templates for supplementary fields that you might want to add:
 
 Origin: <vendor|upstream|other>, <url of original patch>
 Bug: <url in upstream bugtracker>
-Bug-Debian: http://bugs.debian.org/<bugnumber>
+Bug-Debian: https://bugs.debian.org/<bugnumber>
 Bug-Ubuntu: https://launchpad.net/bugs/<bugnumber>
 Forwarded: <no|not-needed|url proving that it has been forwarded>
 Reviewed-By: <name and email of someone who approved the patch>
 Last-Update: <YYYY-MM-DD>
 
-Index: python-botocore-0.69.0/botocore/endpoint.py
-===================================================================
---- python-botocore-0.69.0.orig/botocore/endpoint.py	2014-11-05 09:35:21.714078645 +0900
-+++ python-botocore-0.69.0/botocore/endpoint.py	2014-11-05 09:35:21.710078697 +0900
-@@ -17,8 +17,8 @@
- import time
- import threading
- 
--from botocore.vendored.requests.sessions import Session
--from botocore.vendored.requests.utils import get_environ_proxies
-+from requests.sessions import Session
-+from requests.utils import get_environ_proxies
- import six
- 
- import botocore.response
-Index: python-botocore-0.69.0/botocore/retryhandler.py
-===================================================================
---- python-botocore-0.69.0.orig/botocore/retryhandler.py	2014-11-05 09:35:21.714078645 +0900
-+++ python-botocore-0.69.0/botocore/retryhandler.py	2014-11-05 09:35:21.710078697 +0900
-@@ -17,8 +17,8 @@
- import logging
- from binascii import crc32
- 
--from botocore.vendored.requests import ConnectionError, Timeout
--from botocore.vendored.requests.packages.urllib3.exceptions import ClosedPoolError
-+from requests import ConnectionError, Timeout
-+from urllib3.exceptions import ClosedPoolError
- 
- from botocore.exceptions import ChecksumError
- 
-Index: python-botocore-0.69.0/botocore/awsrequest.py
-===================================================================
---- python-botocore-0.69.0.orig/botocore/awsrequest.py	2014-11-05 09:35:21.714078645 +0900
-+++ python-botocore-0.69.0/botocore/awsrequest.py	2014-11-05 09:36:25.553245163 +0900
-@@ -19,14 +19,14 @@
+--- python-botocore-0.81.0.orig/botocore/awsrequest.py
++++ python-botocore-0.81.0/botocore/awsrequest.py
+@@ -19,14 +19,14 @@ import socket
  import inspect
  
- import six
+ from botocore.compat import six
 -from botocore.vendored.requests import models
 -from botocore.vendored.requests.sessions import REDIRECT_STATI
 +from requests import models
@@ -69,20 +40,55 @@ Index: python-botocore-0.69.0/botocore/awsrequest.py
 -from botocore.vendored.requests.packages.urllib3.connectionpool import HTTPConnectionPool
 -from botocore.vendored.requests.packages.urllib3.connectionpool import HTTPSConnectionPool
 +from urllib3.connection import VerifiedHTTPSConnection
-+from requests.packages.urllib3.connection import HTTPConnection
-+from requests.packages.urllib3.connectionpool import HTTPConnectionPool
-+from requests.packages.urllib3.connectionpool import HTTPSConnectionPool
++from urllib3.connection import HTTPConnection
++from urllib3.connectionpool import HTTPConnectionPool
++from urllib3.connectionpool import HTTPSConnectionPool
  
  
  logger = logging.getLogger(__name__)
-Index: python-botocore-0.69.0/botocore/utils.py
-===================================================================
---- python-botocore-0.69.0.orig/botocore/utils.py	2014-11-05 09:35:21.714078645 +0900
-+++ python-botocore-0.69.0/botocore/utils.py	2014-11-05 09:36:52.764889848 +0900
-@@ -19,7 +19,7 @@
+--- python-botocore-0.81.0.orig/botocore/compat.py
++++ python-botocore-0.81.0/botocore/compat.py
+@@ -16,7 +16,7 @@ import datetime
+ import sys
+ import inspect
+ 
+-from botocore.vendored import six
++import six
+ 
+ 
+ if six.PY3:
+--- python-botocore-0.81.0.orig/botocore/endpoint.py
++++ python-botocore-0.81.0/botocore/endpoint.py
+@@ -17,8 +17,8 @@ import logging
+ import time
+ import threading
+ 
+-from botocore.vendored.requests.sessions import Session
+-from botocore.vendored.requests.utils import get_environ_proxies
++from requests.sessions import Session
++from requests.utils import get_environ_proxies
+ 
+ import botocore.response
+ import botocore.exceptions
+--- python-botocore-0.81.0.orig/botocore/retryhandler.py
++++ python-botocore-0.81.0/botocore/retryhandler.py
+@@ -17,8 +17,8 @@ import functools
+ import logging
+ from binascii import crc32
+ 
+-from botocore.vendored.requests import ConnectionError, Timeout
+-from botocore.vendored.requests.packages.urllib3.exceptions import ClosedPoolError
++from requests import ConnectionError, Timeout
++from urllib3.exceptions import ClosedPoolError
+ 
+ from botocore.exceptions import ChecksumError
+ 
+--- python-botocore-0.81.0.orig/botocore/utils.py
++++ python-botocore-0.81.0/botocore/utils.py
+@@ -22,7 +22,7 @@ from dateutil.tz import tzlocal, tzutc
  
  from botocore.exceptions import InvalidExpressionError, ConfigNotFound
- from botocore.compat import json, quote
+ from botocore.compat import json, quote, zip_longest
 -from botocore.vendored import requests
 +import requests
  from botocore.compat import OrderedDict
