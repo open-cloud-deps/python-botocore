@@ -23,6 +23,7 @@ if six.PY3:
     class HTTPHeaders(http_client.HTTPMessage):
         pass
     from urllib.parse import quote
+    from urllib.parse import urlencode
     from urllib.parse import unquote
     from urllib.parse import unquote_plus
     from urllib.parse import urlsplit
@@ -30,10 +31,10 @@ if six.PY3:
     from urllib.parse import urljoin
     from urllib.parse import parse_qsl
     from urllib.parse import parse_qs
-    from urllib.parse import urlencode
     from http.client import HTTPResponse
     from io import IOBase as _IOBase
     from base64 import encodebytes
+    from email.utils import formatdate
     file_type = _IOBase
     zip = zip
 
@@ -58,15 +59,16 @@ if six.PY3:
 
 else:
     from urllib import quote
+    from urllib import urlencode
     from urllib import unquote
     from urllib import unquote_plus
-    from urllib import urlencode
     from urlparse import urlsplit
     from urlparse import urlunsplit
     from urlparse import urljoin
     from urlparse import parse_qsl
     from urlparse import parse_qs
     from email.message import Message
+    from email.Utils import formatdate
     file_type = file
     from itertools import izip as zip
     from httplib import HTTPResponse
