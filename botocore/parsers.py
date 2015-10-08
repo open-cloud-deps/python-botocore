@@ -97,6 +97,7 @@ import xml.etree.cElementTree
 import logging
 from pprint import pformat
 
+from botocore.compat import six
 from six.moves import http_client
 
 from botocore.utils import parse_timestamp
@@ -106,9 +107,29 @@ LOG = logging.getLogger(__name__)
 DEFAULT_TIMESTAMP_PARSER = parse_timestamp
 
 
-def create_parser(protocol_name):
-    parser_cls = PROTOCOL_PARSERS[protocol_name]
-    return parser_cls()
+class ResponseParserFactory(object):
+    def __init__(self):
+        self._defaults = {}
+
+    def set_parser_defaults(self, **kwargs):
+        """Set default arguments when a parser instance is created.
+
+        You can specify any kwargs that are allowed by a ResponseParser
+        class.  There are currently two arguments:
+
+            * timestamp_parser - A callable that can parse a timetsamp string
+            * blob_parser - A callable that can parse a blob type
+
+        """
+        self._defaults.update(kwargs)
+
+    def create_parser(self, protocol_name):
+        parser_cls = PROTOCOL_PARSERS[protocol_name]
+        return parser_cls(**self._defaults)
+
+
+def create_parser(protocol):
+    return ResponseParserFactory().create_parser(protocol)
 
 
 def _text_content(func):
@@ -120,6 +141,11 @@ def _text_content(func):
     def _get_text_content(self, shape, node_or_string):
         if hasattr(node_or_string, 'text'):
             text = node_or_string.text
+            if text is None:
+                # If an XML node is empty <foo></foo>,
+                # we want to parse that as an empty string,
+                # not as a null/None value.
+                text = ''
         else:
             text = node_or_string
         return func(self, shape, text)
@@ -145,39 +171,56 @@ class ResponseParser(object):
     """
     DEFAULT_ENCODING = 'utf-8'
 
-    def __init__(self, timestamp_parser=None):
+    def __init__(self, timestamp_parser=None, blob_parser=None):
         if timestamp_parser is None:
             timestamp_parser = DEFAULT_TIMESTAMP_PARSER
         self._timestamp_parser = timestamp_parser
+        if blob_parser is None:
+            blob_parser = self._default_blob_parser
+        self._blob_parser = blob_parser
+
+    def _default_blob_parser(self, value):
+        # Blobs are always returned as bytes type (this matters on python3).
+        # We don't decode this to a str because it's entirely possible that the
+        # blob contains binary data that actually can't be decoded.
+        return base64.b64decode(value)
 
     def parse(self, response, shape):
         """Parse the HTTP response given a shape.
 
-        :param response: The HTTP response dictionary.  This is a dictionary that
-            represents the HTTP request.  The dictionary must have the
+        :param response: The HTTP response dictionary.  This is a dictionary
+            that represents the HTTP request.  The dictionary must have the
             following keys, ``body``, ``headers``, and ``status_code``.
 
         :param shape: The model shape describing the expected output.
-        :return: Returns a dictionary representing the parsed response described
-            by the model.  In addition to the shape described from the model,
-            each response will also have a ``ResponseMetadata`` which contains
-            metadata about the response, which contains at least one key containing
-            ``RequestId``.  Some responses may populate additional keys, but
-            ``RequestId`` will always be present.
+        :return: Returns a dictionary representing the parsed response
+            described by the model.  In addition to the shape described from
+            the model, each response will also have a ``ResponseMetadata``
+            which contains metadata about the response, which contains at least
+            two keys containing ``RequestId`` and ``HTTPStatusCode``.  Some
+            responses may populate additional keys, but ``RequestId`` will
+            always be present.
 
         """
         LOG.debug('Response headers:\n%s', pformat(dict(response['headers'])))
         LOG.debug('Response body:\n%s', response['body'])
         if response['status_code'] >= 301:
-            return self._do_error_parse(response, shape)
+            parsed = self._do_error_parse(response, shape)
         else:
-            return self._do_parse(response, shape)
+            parsed = self._do_parse(response, shape)
+        # Inject HTTPStatusCode key in the response metadata if the
+        # response metadata exists.
+        if isinstance(parsed, dict) and 'ResponseMetadata' in parsed:
+            parsed['ResponseMetadata']['HTTPStatusCode'] = (
+                response['status_code'])
+        return parsed
 
     def _do_parse(self, response, shape):
         raise NotImplementedError("%s._do_parse" % self.__class__.__name__)
 
     def _do_error_parse(self, response, shape):
-        raise NotImplementedError("%s._do_error_parse" % self.__class__.__name__)
+        raise NotImplementedError(
+            "%s._do_error_parse" % self.__class__.__name__)
 
     def _parse_shape(self, shape, node):
         handler = getattr(self, '_handle_%s' % shape.type_name,
@@ -198,8 +241,9 @@ class ResponseParser(object):
 
 
 class BaseXMLResponseParser(ResponseParser):
-    def __init__(self, timestamp_parser=None):
-        super(BaseXMLResponseParser, self).__init__(timestamp_parser)
+    def __init__(self, timestamp_parser=None, blob_parser=None):
+        super(BaseXMLResponseParser, self).__init__(timestamp_parser,
+                                                    blob_parser)
         self._namespace_re = re.compile('{.*}')
 
     def _handle_map(self, shape, node):
@@ -326,6 +370,10 @@ class BaseXMLResponseParser(ResponseParser):
     def _handle_string(self, shape, text):
         return text
 
+    @_text_content
+    def _handle_blob(self, shape, text):
+        return self._blob_parser(text)
+
     _handle_character = _handle_string
     _handle_double = _handle_float
     _handle_long = _handle_integer
@@ -375,12 +423,6 @@ class QueryParser(BaseXMLResponseParser):
 
     def _handle_string(self, shape, node):
         return node.text
-
-    def _handle_blob(self, shape, node):
-        # Blobs are always returned as bytes type (this matters on python3).
-        # We don't decode this to a str because it's entirely possible that the
-        # blob contains binary data that actually can't be decoded.
-        return base64.b64decode(node.text)
 
     _handle_character = _handle_string
 
@@ -442,7 +484,7 @@ class BaseJSONParser(ResponseParser):
         return parsed
 
     def _handle_blob(self, shape, value):
-        return base64.b64decode(value)
+        return self._blob_parser(value)
 
     def _handle_timestamp(self, shape, value):
         return self._timestamp_parser(value)
@@ -488,8 +530,8 @@ class JSONParser(BaseJSONParser):
 
     def _inject_response_metadata(self, parsed, headers):
         if 'x-amzn-requestid' in headers:
-            parsed.setdefault('ResponseMetadata', {})['RequestId'] = \
-                    headers['x-amzn-requestid']
+            parsed.setdefault('ResponseMetadata', {})['RequestId'] = (
+                headers['x-amzn-requestid'])
 
 
 class BaseRestParser(ResponseParser):
@@ -539,7 +581,6 @@ class BaseRestParser(ResponseParser):
             original_parsed = self._initial_body_parse(response['body'])
             body_parsed = self._parse_shape(shape, original_parsed)
             final_parsed.update(body_parsed)
-
 
     def _parse_non_payload_attrs(self, response, shape,
                                  member_shapes, final_parsed):
@@ -601,6 +642,8 @@ class RestJSONParser(BaseRestParser, BaseJSONParser):
             # x-amzn-errortype: ValidationException:
             code = code.split(':')[0]
             error['Error']['Code'] = code
+        elif 'code' in body:
+            error['Error']['Code'] = body['code']
         return error
 
 
@@ -663,9 +706,6 @@ class RestXMLParser(BaseRestParser, BaseXMLResponseParser):
             # Other rest-xml serivces:
             parsed['ResponseMetadata'] = {'RequestId': parsed.pop('RequestId')}
         return parsed
-
-    def _handle_blob(self, shape, node):
-        return base64.b64decode(node.text)
 
 
 PROTOCOL_PARSERS = {

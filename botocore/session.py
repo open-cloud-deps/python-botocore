@@ -32,9 +32,11 @@ from botocore import handlers
 from botocore.hooks import HierarchicalEmitter, first_non_none_response
 from botocore.loaders import Loader
 from botocore.provider import get_provider
+from botocore.parsers import ResponseParserFactory
 from botocore import regions
 from botocore.model import ServiceModel
 import botocore.service
+from botocore import waiter
 
 
 class Session(object):
@@ -174,6 +176,7 @@ class Session(object):
         self._register_data_loader()
         self._register_endpoint_resolver()
         self._register_event_emitter()
+        self._register_response_parser_factory()
 
     def _register_event_emitter(self):
         self._components.register_component('event_emitter', self._events)
@@ -192,6 +195,10 @@ class Session(object):
         self._components.lazy_register_component(
             'endpoint_resolver',
             lambda:  regions.EndpointResolver(self.get_data('aws/_endpoints')))
+
+    def _register_response_parser_factory(self):
+        self._components.register_component('response_parser_factory',
+                                            ResponseParserFactory())
 
     def _reset_components(self):
         self._register_components()
@@ -493,6 +500,14 @@ class Session(object):
         """
         service_description = self.get_service_data(service_name, api_version)
         return ServiceModel(service_description)
+
+    def get_waiter_model(self, service_name, api_version=None):
+        loader = self.get_component('data_loader')
+        latest = loader.determine_latest('%s/%s' % (
+            self.provider.name, service_name), api_version)
+        waiter_path = latest.replace('.normal', '.waiters')
+        waiter_config = loader.load_data(waiter_path)
+        return waiter.WaiterModel(waiter_config)
 
     def get_service_data(self, service_name, api_version=None):
         """
@@ -799,8 +814,11 @@ class Session(object):
                                                          aws_secret_access_key,
                                                          aws_session_token)
         event_emitter = self.get_component('event_emitter')
+        response_parser_factory = self.get_component(
+            'response_parser_factory')
         client_creator = botocore.client.ClientCreator(loader, endpoint_creator,
-                                                       event_emitter)
+                                                       event_emitter,
+                                                       response_parser_factory)
         client = client_creator.create_client(service_name, region_name, use_ssl,
                                               endpoint_url, verify,
                                               aws_access_key_id,
