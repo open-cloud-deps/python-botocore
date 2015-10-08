@@ -6,3 +6,6 @@ fff9a8a8ca98f53328e693c920a55503955130a4
 python-botocore_0.81.0.orig.tar.gz
 1320641df25ef12ea9487d021cade0fd59f0e96f
 903736
+debianTag="debian/%e%v"
+patchedTag="patched/%e%v"
+upstreamTag="upstream/%e%u"
