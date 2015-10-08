@@ -1,25 +1,17 @@
 # Copyright (c) 2012-2013 Mitch Garnaat http://garnaat.org/
-# Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright 2012-2014 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
-# Permission is hereby granted, free of charge, to any person obtaining a
-# copy of this software and associated documentation files (the
-# "Software"), to deal in the Software without restriction, including
-# without limitation the rights to use, copy, modify, merge, publish, dis-
-# tribute, sublicense, and/or sell copies of the Software, and to permit
-# persons to whom the Software is furnished to do so, subject to the fol-
-# lowing conditions:
+# Licensed under the Apache License, Version 2.0 (the "License"). You
+# may not use this file except in compliance with the License. A copy of
+# the License is located at
 #
-# The above copyright notice and this permission notice shall be included
-# in all copies or substantial portions of the Software.
+# http://aws.amazon.com/apache2.0/
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABIL-
-# ITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
-# SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-# IN THE SOFTWARE.
-#
+# or in the "license" file accompanying this file. This file is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+# ANY KIND, either express or implied. See the License for the specific
+# language governing permissions and limitations under the License.
+
 import logging
 import base64
 import datetime
@@ -79,7 +71,7 @@ class Parameter(BotoCoreObject):
             label = label.format(label=self.get_label())
         else:
             label = self.get_label()
-        built_params[label] = str(value)
+        built_params[label] = six.text_type(value)
 
     def build_parameter_query(self, value, built_params, label=''):
         value = self.validate(value)
@@ -123,7 +115,10 @@ class Parameter(BotoCoreObject):
     def to_xml(self, value, label=None):
         if not label:
             label = self.name
-        return '<%s>%s</%s>' % (label, value, label)
+        if value is None:
+            return '<%s></%s>' % (label, label)
+        else:
+            return '<%s>%s</%s>' % (label, value, label)
 
 
 class IntegerParameter(Parameter):
@@ -261,12 +256,12 @@ class TimestampParameter(Parameter):
     def validate(self, value):
         try:
             return dateutil.parser.parse(value)
-        except:
+        except Exception:
             pass
         try:
             # Might be specified as an epoch time
             return datetime.datetime.utcfromtimestamp(value)
-        except:
+        except Exception:
             pass
         raise ValidationError(value=str(value), type_name='timestamp',
                               param=self)
@@ -326,7 +321,11 @@ class BlobParameter(Parameter):
                                       param=self)
             if not hasattr(self, 'payload') or self.payload is False:
                 # Blobs that are not in the payload should be base64-encoded
-                value = base64.b64encode(six.b(value)).decode('utf-8')
+                if isinstance(value, six.text_type):
+                    v = value.encode('utf-8')
+                else:
+                    v = value
+                value = base64.b64encode(v).decode('utf-8')
         return value
 
 
@@ -374,13 +373,16 @@ class ListParameter(Parameter):
             else:
                 label = self.get_label()
             label = '%s.%s' % (label, 'member')
-        if len(value) == 0 and self.required:
-            # If the parameter is required and an empty list is
-            # provided as a value, we should insert a parameter
-            # into the dictionary with the base name of the
-            # parameter and a value of the empty string. See
+        if len(value) == 0:
+            # If an empty list is provided as a value, then we should
+            # insert a parameter into the dictionary with the base name
+            # of the parameter and a value of the empty string. See
             # ELB SetLoadBalancerPoliciesForBackendServer for example.
-            built_params[label.split('.')[0]] = ''
+            if not self.flattened and label.endswith('.member'):
+                # Strip off the last '.member' part of the string
+                # if we're serializing an empty non flattened list.
+                label = '.'.join(label.split('.')[:-1])
+            built_params[label] = ''
         else:
             for i, v in enumerate(value, 1):
                 member_type.build_parameter_query(v, built_params,
@@ -448,6 +450,21 @@ class MapParameter(Parameter):
             built_params[label] = new_value
         for key in value:
             new_value[key] = value[key]
+
+    def build_parameter_rest(self, style, value, built_params, label=''):
+        # There's a special case for rest-xml with header locations
+        # that we we need to handle for maps.  If this is not the
+        # case we can defer to the base class's implementation of
+        # map parameters serialization.
+        if style == 'rest-xml' and getattr(self, 'location', '') == 'header':
+            prefix = getattr(self, 'location_name', '') or self.name
+            user_params = value
+            for key, value in user_params.items():
+                full_key_name = prefix + key
+                built_params['headers'][full_key_name] = value
+        else:
+            return super(MapParameter, self).build_parameter_rest(
+                style, value, build_params, label)
 
 
 class StructParameter(Parameter):

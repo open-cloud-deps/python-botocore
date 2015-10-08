@@ -1,31 +1,26 @@
 # Copyright (c) 2012-2013 Mitch Garnaat http://garnaat.org/
-# Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright 2012-2014 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
-# Permission is hereby granted, free of charge, to any person obtaining a
-# copy of this software and associated documentation files (the
-# "Software"), to deal in the Software without restriction, including
-# without limitation the rights to use, copy, modify, merge, publish, dis-
-# tribute, sublicense, and/or sell copies of the Software, and to permit
-# persons to whom the Software is furnished to do so, subject to the fol-
-# lowing conditions:
+# Licensed under the Apache License, Version 2.0 (the "License"). You
+# may not use this file except in compliance with the License. A copy of
+# the License is located at
 #
-# The above copyright notice and this permission notice shall be included
-# in all copies or substantial portions of the Software.
+# http://aws.amazon.com/apache2.0/
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABIL-
-# ITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
-# SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-# IN THE SOFTWARE.
-#
+# or in the "license" file accompanying this file. This file is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+# ANY KIND, either express or implied. See the License for the specific
+# language governing permissions and limitations under the License.
+
 """Translate the raw json files into python specific descriptions."""
 import os
 import re
 from copy import deepcopy
 
+import jmespath
+
 from botocore.compat import OrderedDict, json
+from botocore.utils import set_value_from_jmespath, merge_dicts
 from botocore import xform_name
 
 
@@ -35,15 +30,13 @@ class ModelFiles(object):
     Includes:
 
         * The json service description.
-        * The _regions.json file.
         * The _retry.json file.
         * The <service>.extra.json enhancements file.
         * The name of the service.
 
     """
-    def __init__(self, model, regions, retry, enhancements, name=''):
+    def __init__(self, model, retry, enhancements, name=''):
         self.model = model
-        self.regions = regions
         self.retry = retry
         self.enhancements = enhancements
         self.name = name
@@ -52,14 +45,11 @@ class ModelFiles(object):
 def load_model_files(args):
     model = json.load(open(args.modelfile),
                       object_pairs_hook=OrderedDict)
-    regions = json.load(open(args.regions_file),
-                        object_pairs_hook=OrderedDict)
     retry = json.load(open(args.retry_file),
                       object_pairs_hook=OrderedDict)
     enhancements = _load_enhancements_file(args.enhancements_file)
     service_name = os.path.splitext(os.path.basename(args.modelfile))[0]
-    return ModelFiles(model, regions, retry, enhancements,
-                      name=service_name)
+    return ModelFiles(model, retry, enhancements, name=service_name)
 
 
 def _load_enhancements_file(file_path):
@@ -81,6 +71,7 @@ def translate(model):
     handle_remove_deprecated_params(new_model, model.enhancements)
     handle_remove_deprecated_operations(new_model, model.enhancements)
     handle_filter_documentation(new_model, model.enhancements)
+    handle_rename_params(new_model, model.enhancements)
     add_pagination_configs(
         new_model,
         model.enhancements.get('pagination', {}))
@@ -190,6 +181,31 @@ def handle_filter_documentation(new_model, enhancements):
                     _filter_param_doc(param, replacement, filter_regex)
 
 
+def handle_rename_params(new_model, enhancements):
+    renames = enhancements.get('transformations', {}).get(
+        'renames', {})
+    if not renames:
+        return
+    # This is *extremely* specific to botocore's translations, but
+    # we support a restricted set of argument renames based on a
+    # jmespath expression.
+    for expression, new_value in renames.items():
+        # First we take everything up until the last dot.
+        parent_expression, key = expression.rsplit('.', 1)
+        matched = jmespath.search(parent_expression, new_model['operations'])
+        current = matched[key]
+        del matched[key]
+        matched[new_value] = current
+
+
+def resembles_jmespath_exp(value):
+    # For now, we'll do a naive check.
+    if '.' in value:
+        return True
+
+    return False
+
+
 def add_pagination_configs(new_model, pagination):
     # Adding in pagination configs means copying the config to a top level
     # 'pagination' key in the new model, and it also means adding the
@@ -227,6 +243,8 @@ def add_pagination_configs(new_model, pagination):
             raise ValueError("Trying to add pagination config for an "
                              "operation with no output members: %s" % name)
         for result_key in result_keys:
+            if resembles_jmespath_exp(result_key):
+                continue
             if result_key not in operation['output']['members']:
                 raise ValueError("result_key %r is not an output member: %s" %
                                 (result_key,
@@ -381,7 +399,8 @@ def _transform_waiter(new_waiter):
 def _check_known_pagination_keys(config):
     # Verify that the pagination config only has keys we expect to see.
     expected = set(['input_token', 'py_input_token', 'output_token',
-                    'result_key', 'limit_key', 'more_key'])
+                    'result_key', 'limit_key', 'more_results',
+                    'non_aggregate_keys'])
     for key in config:
         if key not in expected:
             raise ValueError("Unknown key in pagination config: %s" % key)
@@ -442,25 +461,3 @@ def resolve_references(config, definitions):
                 config[key] = definitions[list(value.values())[0]]
             else:
                 resolve_references(value, definitions)
-
-
-def merge_dicts(dict1, dict2):
-    """Given two dict, merge the second dict into the first.
-
-    The dicts can have arbitrary nesting.
-
-    """
-    for key in dict2:
-        if is_sequence(dict2[key]):
-            if key in dict1 and key in dict2:
-                merge_dicts(dict1[key], dict2[key])
-            else:
-                dict1[key] = dict2[key]
-        else:
-            # At scalar types, we iterate and merge the
-            # current dict that we're on.
-            dict1[key] = dict2[key]
-
-
-def is_sequence(x):
-    return isinstance(x, (list, dict))

@@ -1,24 +1,16 @@
-# Copyright 2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright 2012-2014 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
-# Permission is hereby granted, free of charge, to any person obtaining a
-# copy of this software and associated documentation files (the
-# "Software"), to deal in the Software without restriction, including
-# without limitation the rights to use, copy, modify, merge, publish, dis-
-# tribute, sublicense, and/or sell copies of the Software, and to permit
-# persons to whom the Software is furnished to do so, subject to the fol-
-# lowing conditions:
+# Licensed under the Apache License, Version 2.0 (the "License"). You
+# may not use this file except in compliance with the License. A copy of
+# the License is located at
 #
-# The above copyright notice and this permission notice shall be included
-# in all copies or substantial portions of the Software.
+# http://aws.amazon.com/apache2.0/
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABIL-
-# ITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
-# SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-# IN THE SOFTWARE.
-#
+# or in the "license" file accompanying this file. This file is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+# ANY KIND, either express or implied. See the License for the specific
+# language governing permissions and limitations under the License.
+
 """Builtin event handlers.
 
 This module contains builtin handlers for events emitted by botocore.
@@ -31,8 +23,9 @@ import re
 
 import six
 
-from botocore.compat import urlsplit, urlunsplit, unquote, json
+from botocore.compat import urlsplit, urlunsplit, unquote, json, quote
 from botocore import retryhandler
+from botocore.payload import Payload
 import botocore.auth
 
 
@@ -40,9 +33,38 @@ logger = logging.getLogger(__name__)
 LABEL_RE = re.compile('[a-z0-9][a-z0-9\-]*[a-z0-9]')
 RESTRICTED_REGIONS = [
     'us-gov-west-1',
-    'fips-gov-west-1',
+    'fips-us-gov-west-1',
 ]
 
+
+
+def check_for_200_error(response, operation, **kwargs):
+    # From: http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectCOPY.html
+    # There are two opportunities for a copy request to return an error. One
+    # can occur when Amazon S3 receives the copy request and the other can
+    # occur while Amazon S3 is copying the files. If the error occurs before
+    # the copy operation starts, you receive a standard Amazon S3 error. If the
+    # error occurs during the copy operation, the error response is embedded in
+    # the 200 OK response. This means that a 200 OK response can contain either
+    # a success or an error. Make sure to design your application to parse the
+    # contents of the response and handle it appropriately.
+    #
+    # So this handler checks for this case.  Even though the server sends a
+    # 200 response, conceptually this should be handled exactly like a
+    # 500 response (with respect to raising exceptions, retries, etc.)
+    # We're connected *before* all the other retry logic handlers, so as long
+    # as we switch the error code to 500, we'll retry the error as expected.
+    if response is None:
+        # A None response can happen if an exception is raised while
+        # trying to retrieve the response.  See Endpoint._get_response().
+        return
+    http_response, parsed = response
+    if http_response.status_code == 200:
+        if 'Errors' in parsed:
+            logger.debug("Error found for response with 200 status code, "
+                         "operation: %s, errors: %s, changing status code to "
+                         "500.", operation, parsed)
+            http_response.status_code = 500
 
 
 def decode_console_output(event_name, shape, value, **kwargs):
@@ -75,6 +97,25 @@ def calculate_md5(event_name, params, **kwargs):
         md5.update(six.b(params['payload'].getvalue()))
         value = base64.b64encode(md5.digest()).decode('utf-8')
         params['headers']['Content-MD5'] = value
+
+
+def sse_md5(event_name, params, **kwargs):
+    """
+    S3 server-side encryption requires the encryption key to be sent to the
+    server base64 encoded, as well as a base64-encoded MD5 hash of the
+    encryption key. This handler does both if the MD5 has not been set by
+    the caller.
+    """
+    prefix = 'x-amz-server-side-encryption-customer-'
+    key = prefix + 'key'
+    key_md5 = prefix + 'key-MD5'
+    if key in params['headers'] and not key_md5 in params['headers']:
+        original = six.b(params['headers'][key])
+        md5 = hashlib.md5()
+        md5.update(original)
+        value = base64.b64encode(md5.digest()).decode('utf-8')
+        params['headers'][key] = base64.b64encode(original).decode('utf-8')
+        params['headers'][key_md5] = value
 
 
 def check_dns_name(bucket_name):
@@ -116,7 +157,7 @@ def fix_s3_host(event_name, endpoint, request, auth, **kwargs):
     parts = urlsplit(request.url)
     auth.auth_path = parts.path
     path_parts = parts.path.split('/')
-    if isinstance(auth, botocore.auth.S3SigV4Auth):
+    if isinstance(auth, botocore.auth.SigV4Auth):
         return
     if len(path_parts) > 1:
         bucket_name = path_parts[1]
@@ -186,6 +227,61 @@ def maybe_switch_to_sigv4(service, region_name, **kwargs):
         service.signature_version = 'v4'
 
 
+def signature_overrides(service_data, service_name, session, **kwargs):
+    scoped_config = session.get_scoped_config()
+    service_config = scoped_config.get(service_name)
+    if service_config is None or not isinstance(service_config, dict):
+        return
+    signature_version_override = service_config.get('signature_version')
+    if signature_version_override is not None:
+        logger.debug("Switching signature version for service %s "
+                     "to version %s based on config file override.",
+                     service_name, signature_version_override)
+        service_data['signature_version'] = signature_version_override
+
+
+def add_expect_header(operation, params, **kwargs):
+    if operation.http.get('method', '') not in ['PUT', 'POST']:
+        return
+    if params['payload'].__class__ == Payload:
+        payload = params['payload'].getvalue()
+        if hasattr(payload, 'read'):
+            # Any file like object will use an expect 100-continue
+            # header regardless of size.
+            logger.debug("Adding expect 100 continue header to request.")
+            params['headers']['Expect'] = '100-continue'
+
+
+def quote_source_header(params, **kwargs):
+    if params['headers'] and 'x-amz-copy-source' in params['headers']:
+        value = params['headers']['x-amz-copy-source']
+        params['headers']['x-amz-copy-source'] = quote(
+            value.encode('utf-8'), '/~')
+
+
+def copy_snapshot_encrypted(operation, params, **kwargs):
+    # The presigned URL that facilities copying an encrypted snapshot.
+    # If the user does not provide this value, we will automatically
+    # calculate on behalf of the user and inject the PresignedUrl
+    # into the requests.
+    if 'PresignedUrl' in params:
+        # If the customer provided this value, then there's nothing for
+        # us to do.
+        return
+    # The request will be sent to the destination region, so we need
+    # to create an endpoint to the source region and create a presigned
+    # url based on the source endpoint.
+    region = params['SourceRegion']
+    source_endpoint = operation.service.get_endpoint(region)
+    presigner = botocore.auth.SigV4QueryAuth(
+        credentials=source_endpoint.auth.credentials,
+        region_name=region,
+        service_name='ec2',
+        expires=60 * 60)
+    signed_request = source_endpoint.create_request(operation, params, presigner)
+    params['PresignedUrl'] = signed_request.url
+
+
 # This is a list of (event_name, handler).
 # When a Session is created, everything in this list will be
 # automatically registered with that Session.
@@ -200,8 +296,23 @@ BUILTIN_HANDLERS = [
     ('before-call.s3.PutBucketLifecycle', calculate_md5),
     ('before-call.s3.PutBucketCors', calculate_md5),
     ('before-call.s3.DeleteObjects', calculate_md5),
+    ('before-call.s3.UploadPartCopy', quote_source_header),
+    ('before-call.s3.CopyObject', quote_source_header),
+    ('before-call.s3', add_expect_header),
+    ('before-call.ec2.CopySnapshot', copy_snapshot_encrypted),
     ('before-auth.s3', fix_s3_host),
+    ('needs-retry.s3.UploadPartCopy', check_for_200_error),
+    ('needs-retry.s3.CopyObject', check_for_200_error),
+    ('needs-retry.s3.CompleteMultipartUpload', check_for_200_error),
     ('service-created', register_retries_for_service),
     ('creating-endpoint.s3', maybe_switch_to_s3sigv4),
     ('creating-endpoint.ec2', maybe_switch_to_sigv4),
+    ('service-data-loaded', signature_overrides),
+    ('before-call.s3.HeadObject', sse_md5),
+    ('before-call.s3.GetObject', sse_md5),
+    ('before-call.s3.PutObject', sse_md5),
+    ('before-call.s3.CopyObject', sse_md5),
+    ('before-call.s3.CreateMultipartUpload', sse_md5),
+    ('before-call.s3.UploadPart', sse_md5),
+    ('before-call.s3.UploadPartCopy', sse_md5),
 ]
