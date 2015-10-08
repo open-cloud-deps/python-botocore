@@ -40,8 +40,10 @@ botocore/data/aws/cloudformation/2010-05-15.json
 botocore/data/aws/cloudfront/2012-05-05.json
 botocore/data/aws/cloudfront/2013-05-12.json
 botocore/data/aws/cloudfront/2013-11-11.json
+botocore/data/aws/cloudfront/2014-05-31.json
 botocore/data/aws/cloudsearch/2011-02-01.json
 botocore/data/aws/cloudsearch/2013-01-01.json
+botocore/data/aws/cloudsearchdomain/2013-01-01.json
 botocore/data/aws/cloudtrail/2013-11-01.json
 botocore/data/aws/cloudwatch/2010-08-01.json
 botocore/data/aws/datapipeline/2012-10-29.json
