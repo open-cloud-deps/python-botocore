@@ -1,4 +1,8 @@
-Description: <short summary of the patch>
+From 0be67ded0a46901554df52c6dff6a242f890ff0c Mon Sep 17 00:00:00 2001
+From: TANIGUCHI Takaki <takaki@debian.org>
+Date: Thu, 8 Oct 2015 11:16:20 -0700
+Subject: <short summary of the patch>
+
  TODO: Put a short summary on the line above and replace this paragraph
  with a longer explanation of this change. Complete the meta-information
  with other relevant fields (see below for details). To make it easier, the
@@ -8,23 +12,20 @@ Description: <short summary of the patch>
  python-botocore (0.81.0-1) UNRELEASED; urgency=medium
  .
    * New upstream release
-Author: TANIGUCHI Takaki <takaki@debian.org>
 
+Patch-Name: remove-duplicated-code
 ---
-The information above should follow the Patch Tagging Guidelines, please
-checkout http://dep.debian.net/deps/dep3/ to learn about the format. Here
-are templates for supplementary fields that you might want to add:
+ botocore/awsrequest.py   | 12 ++++++------
+ botocore/compat.py       |  2 +-
+ botocore/endpoint.py     |  4 ++--
+ botocore/retryhandler.py |  4 ++--
+ botocore/utils.py        |  2 +-
+ 5 files changed, 12 insertions(+), 12 deletions(-)
 
-Origin: <vendor|upstream|other>, <url of original patch>
-Bug: <url in upstream bugtracker>
-Bug-Debian: https://bugs.debian.org/<bugnumber>
-Bug-Ubuntu: https://launchpad.net/bugs/<bugnumber>
-Forwarded: <no|not-needed|url proving that it has been forwarded>
-Reviewed-By: <name and email of someone who approved the patch>
-Last-Update: <YYYY-MM-DD>
-
---- python-botocore-0.81.0.orig/botocore/awsrequest.py
-+++ python-botocore-0.81.0/botocore/awsrequest.py
+diff --git a/botocore/awsrequest.py b/botocore/awsrequest.py
+index bf4a4da..ccc01a6 100644
+--- a/botocore/awsrequest.py
++++ b/botocore/awsrequest.py
 @@ -19,14 +19,14 @@ import socket
  import inspect
  
@@ -46,8 +47,10 @@ Last-Update: <YYYY-MM-DD>
  
  
  logger = logging.getLogger(__name__)
---- python-botocore-0.81.0.orig/botocore/compat.py
-+++ python-botocore-0.81.0/botocore/compat.py
+diff --git a/botocore/compat.py b/botocore/compat.py
+index b424b91..e8a1323 100644
+--- a/botocore/compat.py
++++ b/botocore/compat.py
 @@ -16,7 +16,7 @@ import datetime
  import sys
  import inspect
@@ -57,8 +60,10 @@ Last-Update: <YYYY-MM-DD>
  
  
  if six.PY3:
---- python-botocore-0.81.0.orig/botocore/endpoint.py
-+++ python-botocore-0.81.0/botocore/endpoint.py
+diff --git a/botocore/endpoint.py b/botocore/endpoint.py
+index 963068d..9409499 100644
+--- a/botocore/endpoint.py
++++ b/botocore/endpoint.py
 @@ -17,8 +17,8 @@ import logging
  import time
  import threading
@@ -70,8 +75,10 @@ Last-Update: <YYYY-MM-DD>
  
  import botocore.response
  import botocore.exceptions
---- python-botocore-0.81.0.orig/botocore/retryhandler.py
-+++ python-botocore-0.81.0/botocore/retryhandler.py
+diff --git a/botocore/retryhandler.py b/botocore/retryhandler.py
+index 2505db2..c12d2e0 100644
+--- a/botocore/retryhandler.py
++++ b/botocore/retryhandler.py
 @@ -17,8 +17,8 @@ import functools
  import logging
  from binascii import crc32
@@ -83,8 +90,10 @@ Last-Update: <YYYY-MM-DD>
  
  from botocore.exceptions import ChecksumError
  
---- python-botocore-0.81.0.orig/botocore/utils.py
-+++ python-botocore-0.81.0/botocore/utils.py
+diff --git a/botocore/utils.py b/botocore/utils.py
+index 7ae0ae3..c36be74 100644
+--- a/botocore/utils.py
++++ b/botocore/utils.py
 @@ -22,7 +22,7 @@ from dateutil.tz import tzlocal, tzutc
  
  from botocore.exceptions import InvalidExpressionError, ConfigNotFound

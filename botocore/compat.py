@@ -16,7 +16,7 @@ import datetime
 import sys
 import inspect
 
-from botocore.vendored import six
+import six
 
 
 if six.PY3:
