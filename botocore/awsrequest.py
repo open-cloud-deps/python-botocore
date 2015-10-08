@@ -19,14 +19,14 @@ import socket
 import inspect
 
 from botocore.compat import six
-from botocore.vendored.requests import models
-from botocore.vendored.requests.sessions import REDIRECT_STATI
+from requests import models
+from requests.sessions import REDIRECT_STATI
 from botocore.compat import HTTPHeaders, HTTPResponse
 from botocore.exceptions import UnseekableStreamError
-from botocore.vendored.requests.packages.urllib3.connection import VerifiedHTTPSConnection
-from botocore.vendored.requests.packages.urllib3.connection import HTTPConnection
-from botocore.vendored.requests.packages.urllib3.connectionpool import HTTPConnectionPool
-from botocore.vendored.requests.packages.urllib3.connectionpool import HTTPSConnectionPool
+from urllib3.connection import VerifiedHTTPSConnection
+from urllib3.connection import HTTPConnection
+from urllib3.connectionpool import HTTPConnectionPool
+from urllib3.connectionpool import HTTPSConnectionPool
 
 
 logger = logging.getLogger(__name__)
