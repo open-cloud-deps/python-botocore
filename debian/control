@@ -11,8 +11,8 @@ Build-Depends: debhelper (>= 9)
 	, dh-python
 Standards-Version: 3.9.6
 Homepage: https://github.com/boto/botocore
-Vcs-Svn: svn://anonscm.debian.org/python-apps/packages/python-botocore/trunk/
-Vcs-Browser: http://anonscm.debian.org/viewvc/python-apps/packages/python-botocore/trunk/
+Vcs-Git: git://anonscm.debian.org/python-modules/packages/python-botocore.git
+Vcs-Browser: https://anonscm.debian.org/cgit/python-modules/packages/python-botocore.git
 
 Package: python-botocore
 Architecture: all
