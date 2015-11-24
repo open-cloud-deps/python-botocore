@@ -19,9 +19,9 @@ import warnings
 import hashlib
 import logging
 
-from botocore.vendored import six
+import six
 from botocore.exceptions import MD5UnavailableError
-from botocore.vendored.requests.packages.urllib3 import exceptions
+from urllib3 import exceptions
 
 logger = logging.getLogger(__name__)
 
