@@ -2,10 +2,10 @@
 0be67ded0a46901554df52c6dff6a242f890ff0c
 0be67ded0a46901554df52c6dff6a242f890ff0c
 fff9a8a8ca98f53328e693c920a55503955130a4
-fff9a8a8ca98f53328e693c920a55503955130a4
-python-botocore_0.81.0.orig.tar.gz
-1320641df25ef12ea9487d021cade0fd59f0e96f
-903736
+ebf3d00fef28da220452ec33350007735889d7bf
+python-botocore_1.3.9.orig.tar.gz
+d517224ccc7cd986f91236a1f499c865fabc52ff
+1900068
 debianTag="debian/%e%v"
 patchedTag="patched/%e%v"
 upstreamTag="upstream/%e%u"
