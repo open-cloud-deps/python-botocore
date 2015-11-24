@@ -17,11 +17,11 @@ import logging
 import time
 import threading
 
-from botocore.vendored.requests.adapters import HTTPAdapter
-from botocore.vendored.requests.sessions import Session
-from botocore.vendored.requests.utils import get_environ_proxies
-from botocore.vendored.requests.exceptions import ConnectionError
-from botocore.vendored import six
+from requests.adapters import HTTPAdapter
+from requests.sessions import Session
+from requests.utils import get_environ_proxies
+from requests.exceptions import ConnectionError
+import six
 
 from botocore.awsrequest import create_request_object
 from botocore.exceptions import UnknownEndpointError
@@ -52,7 +52,7 @@ def convert_to_response_dict(http_response, operation_model):
     This converts the requests library's HTTP response object to
     a dictionary.
 
-    :type http_response: botocore.vendored.requests.model.Response
+    :type http_response: requests.model.Response
     :param http_response: The HTTP response from an AWS service request.
 
     :rtype: dict
