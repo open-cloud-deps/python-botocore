@@ -17,8 +17,8 @@ import sys
 import inspect
 import warnings
 
-from botocore.vendored import six
-from botocore.vendored.requests.packages.urllib3 import exceptions
+import six
+from urllib3 import exceptions
 
 
 if six.PY3:
