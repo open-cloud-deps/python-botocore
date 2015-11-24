@@ -1,7 +1,19 @@
+# Copyright 2015 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"). You
+# may not use this file except in compliance with the License. A copy of
+# the License is located at
+#
+# http://aws.amazon.com/apache2.0/
+#
+# or in the "license" file accompanying this file. This file is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+# ANY KIND, either express or implied. See the License for the specific
+# language governing permissions and limitations under the License.
 """Abstractions to interact with service models."""
 from collections import defaultdict
 
-from botocore.utils import CachedProperty
+from botocore.utils import CachedProperty, instance_cache
 from botocore.compat import OrderedDict
 
 
@@ -179,18 +191,18 @@ class MapShape(Shape):
         return self._resolve_shape_ref(self._shape_model['value'])
 
 
+class StringShape(Shape):
+    @CachedProperty
+    def enum(self):
+        return self.metadata.get('enum', [])
+
+
 class ServiceModel(object):
     """
 
     :ivar service_description: The parsed service description dictionary.
 
     """
-    # Any type not in this mapping will default to the Shape class.
-    SHAPE_CLASSES = {
-        'structure': StructureShape,
-        'list': ListShape,
-        'map': MapShape,
-    }
 
     def __init__(self, service_description, service_name=None):
         """
@@ -220,6 +232,7 @@ class ServiceModel(object):
             service_description.get('shapes', {}))
         self._signature_version = NOT_SET
         self._service_name = service_name
+        self._instance_cache = {}
 
     def shape_for(self, shape_name, member_traits=None):
         return self._shape_resolver.get_shape_by_name(
@@ -228,12 +241,17 @@ class ServiceModel(object):
     def resolve_shape_ref(self, shape_ref):
         return self._shape_resolver.resolve_shape_ref(shape_ref)
 
+    @instance_cache
     def operation_model(self, operation_name):
         try:
             model = self._service_description['operations'][operation_name]
         except KeyError:
             raise OperationNotFoundError(operation_name)
-        return OperationModel(model, self)
+        return OperationModel(model, self, operation_name)
+
+    @CachedProperty
+    def documentation(self):
+        return self._service_description.get('documentation', '')
 
     @CachedProperty
     def operation_names(self):
@@ -304,7 +322,7 @@ class ServiceModel(object):
 
 
 class OperationModel(object):
-    def __init__(self, operation_model, service_model):
+    def __init__(self, operation_model, service_model, name=None):
         """
 
         :type operation_model: dict
@@ -315,14 +333,60 @@ class OperationModel(object):
         :type service_model: botocore.model.ServiceModel
         :param service_model: The service model associated with the operation.
 
+        :type name: string
+        :param name: The operation name.  This is the operation name exposed to
+            the users of this model.  This can potentially be different from
+            the "wire_name", which is the operation name that *must* by
+            provided over the wire.  For example, given::
+
+               "CreateCloudFrontOriginAccessIdentity":{
+                 "name":"CreateCloudFrontOriginAccessIdentity2014_11_06",
+                  ...
+              }
+
+           The ``name`` would be ``CreateCloudFrontOriginAccessIdentity``,
+           but the ``self.wire_name`` would be
+           ``CreateCloudFrontOriginAccessIdentity2014_11_06``, which is the
+           value we must send in the corresponding HTTP request.
+
         """
         self._operation_model = operation_model
         self._service_model = service_model
+        self._api_name = name
         # Clients can access '.name' to get the operation name
         # and '.metadata' to get the top level metdata of the service.
-        self.name = operation_model.get('name')
+        self._wire_name = operation_model.get('name')
         self.metadata = service_model.metadata
         self.http = operation_model.get('http', {})
+
+    @CachedProperty
+    def name(self):
+        if self._api_name is not None:
+            return self._api_name
+        else:
+            return self.wire_name
+
+    @property
+    def wire_name(self):
+        """The wire name of the operation.
+
+        In many situations this is the same value as the
+        ``name``, value, but in some services, the operation name
+        exposed to the user is different from the operaiton name
+        we send across the wire (e.g cloudfront).
+
+        Any serialization code should use ``wire_name``.
+
+        """
+        return self._operation_model.get('name')
+
+    @property
+    def service_model(self):
+        return self._service_model
+
+    @CachedProperty
+    def documentation(self):
+        return self._operation_model.get('documentation', '')
 
     @CachedProperty
     def input_shape(self):
@@ -364,6 +428,7 @@ class ShapeResolver(object):
         'structure': StructureShape,
         'list': ListShape,
         'map': MapShape,
+        'string': StringShape
     }
 
     def __init__(self, shape_map):
@@ -383,7 +448,8 @@ class ShapeResolver(object):
         if member_traits:
             shape_model = shape_model.copy()
             shape_model.update(member_traits)
-        return shape_cls(shape_name, shape_model, self)
+        result = shape_cls(shape_name, shape_model, self)
+        return result
 
     def resolve_shape_ref(self, shape_ref):
         # A shape_ref is a dict that has a 'shape' key that
@@ -447,9 +513,15 @@ class DenormalizedStructureBuilder(object):
         }).build_model()
         # ``shape`` is now an instance of botocore.model.StructureShape
 
+    :type dict_type: class
+    :param dict_type: The dictionary type to use, allowing you to opt-in
+                      to using OrderedDict or another dict type. This can
+                      be particularly useful for testing when order
+                      matters, such as for documentation.
+
     """
     def __init__(self, name=None):
-        self.members = {}
+        self.members = OrderedDict()
         self._name_generator = ShapeNameGenerator()
         if name is None:
             self.name = self._name_generator.new_shape_name('structure')
@@ -473,7 +545,7 @@ class DenormalizedStructureBuilder(object):
         :return: The built StructureShape object.
 
         """
-        shapes = {}
+        shapes = OrderedDict()
         denormalized = {
             'type': 'structure',
             'members': self._members,
@@ -498,7 +570,7 @@ class DenormalizedStructureBuilder(object):
             raise InvalidShapeError("Unknown shape type: %s" % model['type'])
 
     def _build_structure(self, model, shapes):
-        members = {}
+        members = OrderedDict()
         shape = self._build_initial_shape(model)
         shape['members'] = members
 

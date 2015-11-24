@@ -11,6 +11,7 @@
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
+from botocore.vendored.requests.exceptions import ConnectionError
 
 
 class BotoCoreError(Exception):
@@ -19,7 +20,7 @@ class BotoCoreError(Exception):
 
     :ivar msg: The descriptive message associated with the error.
     """
-    fmt = 'An unspecified error occured'
+    fmt = 'An unspecified error occurred'
 
     def __init__(self, **kwargs):
         msg = self.fmt.format(**kwargs)
@@ -47,6 +48,21 @@ class ApiVersionNotFoundError(BotoCoreError):
     fmt = 'Unable to load data {data_path} for: {api_version}'
 
 
+class EndpointConnectionError(BotoCoreError):
+    fmt = (
+        'Could not connect to the endpoint URL: "{endpoint_url}"')
+
+
+class ConnectionClosedError(ConnectionError):
+    fmt = (
+        'Connection was closed before we received a valid response '
+        'from endpoint URL: "{endpoint_url}".')
+    def __init__(self, **kwargs):
+        msg = self.fmt.format(**kwargs)
+        kwargs.pop('endpoint_url')
+        super(ConnectionClosedError, self).__init__(msg, **kwargs)
+
+
 class NoCredentialsError(BotoCoreError):
     """
     No credentials could be found
@@ -62,18 +78,6 @@ class PartialCredentialsError(BotoCoreError):
 
     """
     fmt = 'Partial credentials found in {provider}, missing: {cred_var}'
-
-
-class NoRegionError(BotoCoreError):
-    """
-    No region was specified
-
-    :ivar env_var: The name of the environment variable to use to
-        specify the default region.
-    """
-    fmt = (
-        'You must specify a region or set the {env_var} environment variable.'
-    )
 
 
 class UnknownSignatureVersionError(BotoCoreError):
@@ -95,7 +99,22 @@ class ServiceNotInRegionError(BotoCoreError):
     fmt = 'Service {service_name} not available in region {region_name}'
 
 
-class UnknownEndpointError(BotoCoreError):
+class BaseEndpointResolverError(BotoCoreError):
+    """Base error for endpoint resolving errors.
+
+    Should never be raised directly, but clients can catch
+    this exception if they want to generically handle any errors
+    during the endpoint resolution process.
+
+    """
+
+
+class NoRegionError(BaseEndpointResolverError):
+    """No region was specified."""
+    fmt = 'You must specify a region.'
+
+
+class UnknownEndpointError(BaseEndpointResolverError):
     """
     Could not construct an endpoint.
 
@@ -228,15 +247,6 @@ class OperationNotPageableError(BotoCoreError):
     fmt = 'Operation cannot be paginated: {operation_name}'
 
 
-class EventNotFound(BotoCoreError):
-    """
-    The specified event name is unknown to the system.
-
-    :ivar event_name: The name of the event the user attempted to use.
-    """
-    fmt = 'The event ({event_name}) is not known'
-
-
 class ChecksumError(BotoCoreError):
     """The expected checksum did not match the calculated checksum.
 
@@ -280,6 +290,16 @@ class WaiterConfigError(BotoCoreError):
     fmt = 'Error processing waiter config: {error_msg}'
 
 
+class UnknownClientMethodError(BotoCoreError):
+    """Error when trying to access a method on a client that does not exist."""
+    fmt = 'Client does not have method: {method_name}'
+
+
+class UnsupportedSignatureVersionError(BotoCoreError):
+    """Error when trying to access a method on a client that does not exist."""
+    fmt = 'Signature version is not supported: {signature_version}'
+
+
 class ClientError(Exception):
     MSG_TEMPLATE = (
         'An error occurred ({error_code}) when calling the {operation_name} '
@@ -287,8 +307,36 @@ class ClientError(Exception):
 
     def __init__(self, error_response, operation_name):
         msg = self.MSG_TEMPLATE.format(
-            error_code=error_response['Error']['Code'],
-            error_message=error_response['Error']['Message'],
+            error_code=error_response['Error'].get('Code', 'Unknown'),
+            error_message=error_response['Error'].get('Message', 'Unknown'),
             operation_name=operation_name)
         super(ClientError, self).__init__(msg)
         self.response = error_response
+
+
+class UnsupportedTLSVersionWarning(Warning):
+    """Warn when an openssl version that uses TLS 1.2 is required"""
+    pass
+
+
+class ImminentRemovalWarning(Warning):
+    pass
+
+
+class InvalidDNSNameError(BotoCoreError):
+    """Error when virtual host path is forced on a non-DNS compatible bucket"""
+    fmt = (
+        'Bucket named {bucket_name} is not DNS compatible. Virtual '
+        'hosted-style addressing cannot be used. The addressing style '
+        'can be configured by removing the addressing_style value '
+        'or setting that value to \'path\' or \'auto\' in the AWS Config '
+        'file or in the botocore.client.Config object.'
+    )
+
+
+class InvalidS3AddressingStyleError(BotoCoreError):
+    """Error when an invalid path style is specified"""
+    fmt = (
+        'S3 addressing style {s3_addressing_style} is invaild. Valid options '
+        'are: \'auto\', \'virtual\', and \'path\''
+    )

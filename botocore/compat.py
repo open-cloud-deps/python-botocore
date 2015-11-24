@@ -15,8 +15,10 @@ import copy
 import datetime
 import sys
 import inspect
+import warnings
 
 from botocore.vendored import six
+from botocore.vendored.requests.packages.urllib3 import exceptions
 
 
 if six.PY3:
@@ -58,6 +60,9 @@ if six.PY3:
         # changes when using getargspec with functools.partials.
         return inspect.getfullargspec(func)[2]
 
+    def ensure_unicode(s, encoding=None, errors=None):
+        # NOOP in Python 3, because every string is already unicode
+        return s
 
 else:
     from urllib import quote
@@ -106,6 +111,11 @@ else:
     def accepts_kwargs(func):
         return inspect.getargspec(func)[2]
 
+    def ensure_unicode(s, encoding='utf-8', errors='strict'):
+        if isinstance(s, six.text_type):
+            return s
+        return unicode(s, encoding, errors)
+
 try:
     from collections import OrderedDict
 except ImportError:
@@ -119,10 +129,39 @@ if sys.version_info[:2] == (2, 6):
     # will raise a plain old SyntaxError instead of
     # a real exception, so we need to abstract this change.
     XMLParseError = SyntaxError
+
+    # Handle https://github.com/shazow/urllib3/issues/497 for py2.6.  In
+    # python2.6, there is a known issue where sometimes we cannot read the SAN
+    # from an SSL cert (http://bugs.python.org/issue13034).  However, newer
+    # versions of urllib3 will warn you when there is no SAN.  While we could
+    # just turn off this warning in urllib3 altogether, we _do_ want warnings
+    # when they're legitimate warnings.  This method tries to scope the warning
+    # filter to be as specific as possible.
+    def filter_ssl_san_warnings():
+        warnings.filterwarnings(
+            'ignore',
+            message="Certificate has no.*subjectAltName.*",
+            category=exceptions.SecurityWarning,
+            module=".*urllib3\.connection")
 else:
     import xml.etree.cElementTree
     XMLParseError = xml.etree.cElementTree.ParseError
     import json
+
+    def filter_ssl_san_warnings():
+        # Noop for non-py26 versions.  We will parse the SAN
+        # appropriately.
+        pass
+
+
+def filter_ssl_warnings():
+    # Ignore warnings related to SNI as it is not being used in validations.
+    warnings.filterwarnings(
+        'ignore',
+        message="A true SSLContext object is not available.*",
+        category=exceptions.InsecurePlatformWarning,
+        module=".*urllib3\.util\.ssl_")
+    filter_ssl_san_warnings()
 
 
 @classmethod

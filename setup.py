@@ -1,17 +1,13 @@
 #!/usr/bin/env python
-
-"""
-distutils/setuptools install script.
-"""
-
-import sys
 import botocore
+import sys
 
 from setuptools import setup, find_packages
 
 
-requires = ['jmespath==0.5.0',
-            'python-dateutil>=2.1,<3.0.0']
+requires = ['jmespath>=0.7.1,<1.0.0',
+            'python-dateutil>=2.1,<3.0.0',
+            'docutils>=0.10']
 
 
 if sys.version_info[:2] == (2, 6):
@@ -32,19 +28,23 @@ setup(
     version=botocore.__version__,
     description='Low-level, data-driven core of boto 3.',
     long_description=open('README.rst').read(),
-    author='Mitch Garnaat',
-    author_email='garnaat@amazon.com',
+    author='Amazon Web Services',
     url='https://github.com/boto/botocore',
     scripts=[],
     packages=find_packages(exclude=['tests*']),
-    package_data={'botocore': ['data/*.json', 'data/aws/*.json'],
+    package_data={'botocore': ['data/*.json', 'data/*/*.json'],
                   'botocore.vendored.requests': ['*.pem']},
-    package_dir={'botocore': 'botocore'},
     include_package_data=True,
     install_requires=requires,
-    license=open("LICENSE.txt").read(),
+    extras_require={
+        ':python_version=="2.6"': [
+            'ordereddict==1.1',
+            'simplejson==3.3.0',
+        ]
+    },
+    license="Apache License 2.0",
     classifiers=(
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
         'Intended Audience :: System Administrators',
         'Natural Language :: English',
@@ -54,5 +54,6 @@ setup(
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.3',
+        'Programming Language :: Python :: 3.4',
     ),
 )

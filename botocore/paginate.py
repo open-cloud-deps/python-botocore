@@ -13,10 +13,25 @@
 
 from itertools import tee
 
+from six import string_types
+
 import jmespath
 from botocore.exceptions import PaginationError
 from botocore.compat import zip
 from botocore.utils import set_value_from_jmespath, merge_dicts
+
+
+class PaginatorModel(object):
+    def __init__(self, paginator_config):
+        self._paginator_config = paginator_config['pagination']
+
+    def get_paginator(self, operation_name):
+        try:
+            single_paginator_config = self._paginator_config[operation_name]
+        except KeyError:
+            raise ValueError("Paginator for operation does not exist: %s"
+                             % operation_name)
+        return single_paginator_config
 
 
 class PageIterator(object):
@@ -112,6 +127,32 @@ class PageIterator(object):
                 self._inject_token_into_kwargs(current_kwargs, next_token)
                 previous_next_token = next_token
 
+    def search(self, expression):
+        """Applies a JMESPath expression to a paginator
+
+        Each page of results is searched using the provided JMESPath
+        expression. If the result is not a list, it is yielded
+        directly. If the result is a list, each element in the result
+        is yielded individually (essentially implementing a flatmap in
+        which the JMESPath search is the mapping function).
+
+        :type expression: str
+        :param expression: JMESPath expression to apply to each page.
+
+        :return: Returns an iterator that yields the individual
+            elements of applying a JMESPath expression to each page of
+            results.
+        """
+        compiled = jmespath.compile(expression)
+        for page in self:
+            results = compiled.search(page)
+            if isinstance(results, list):
+                for element in results:
+                    yield element
+            else:
+                # Yield result directly if it is not a list.
+                yield results
+
     def _make_request(self, current_kwargs):
         return self._method(**current_kwargs)
 
@@ -148,14 +189,18 @@ class PageIterator(object):
 
     def _handle_first_request(self, parsed, primary_result_key,
                               starting_truncation):
-        # First we need to slice into the array and only return
-        # the truncated amount.
+        # If the payload is an array or string, we need to slice into it
+        # and only return the truncated amount.
         starting_truncation = self._parse_starting_token()[1]
         all_data = primary_result_key.search(parsed)
+        if isinstance(all_data, (list, string_types)):
+            data = all_data[starting_truncation:]
+        else:
+            data = None
         set_value_from_jmespath(
             parsed,
             primary_result_key.expression,
-            all_data[starting_truncation:]
+            data
         )
         # We also need to truncate any secondary result keys
         # because they were not truncated in the previous last
@@ -163,7 +208,16 @@ class PageIterator(object):
         for token in self.result_keys:
             if token == primary_result_key:
                 continue
-            set_value_from_jmespath(parsed, token.expression, [])
+            sample = token.search(parsed)
+            if isinstance(sample, list):
+                empty_value = []
+            elif isinstance(sample, string_types):
+                empty_value = ''
+            elif isinstance(sample, (int, float)):
+                empty_value = 0
+            else:
+                empty_value = None
+            set_value_from_jmespath(parsed, token.expression, empty_value)
         return starting_truncation
 
     def _truncate_response(self, parsed, primary_result_key, truncate_amount,
@@ -198,7 +252,13 @@ class PageIterator(object):
                 return [None]
         next_tokens = []
         for token in self._output_token:
-            next_tokens.append(token.search(parsed))
+            next_token = token.search(parsed)
+            # We do not want to include any empty strings as actual tokens.
+            # Treat them as None.
+            if next_token:
+                next_tokens.append(next_token)
+            else:
+                next_tokens.append(None)
         return next_tokens
 
     def result_key_iters(self):
@@ -208,11 +268,15 @@ class PageIterator(object):
 
     def build_full_result(self):
         complete_result = {}
-        # Prepopulate the result keys with an empty list.
-        for result_expression in self.result_keys:
-            set_value_from_jmespath(complete_result,
-                                    result_expression.expression, [])
-        for _, page in self:
+        for response in self:
+            page = response
+            # We want to try to catch operation object pagination
+            # and format correctly for those. They come in the form
+            # of a tuple of two elements: (http_response, parsed_responsed).
+            # We want the parsed_response as that is what the page iterator
+            # uses. We can remove it though once operation objects are removed.
+            if isinstance(response, tuple) and len(response) == 2:
+                page = response[1]
             # We're incrementally building the full response page
             # by page.  For each page in the response we need to
             # inject the necessary components from the page
@@ -224,10 +288,24 @@ class PageIterator(object):
                 # current result key value.  Then we append the current
                 # value onto the existing value, and re-set that value
                 # as the new value.
-                existing_value = result_expression.search(complete_result)
                 result_value = result_expression.search(page)
-                if result_value is not None:
+                if result_value is None:
+                    continue
+                existing_value = result_expression.search(complete_result)
+                if existing_value is None:
+                    # Set the initial result
+                    set_value_from_jmespath(
+                        complete_result, result_expression.expression,
+                        result_value)
+                    continue
+                # Now both result_value and existing_value contain something
+                if isinstance(result_value, list):
                     existing_value.extend(result_value)
+                elif isinstance(result_value, (int, float, string_types)):
+                    # Modify the existing result with the sum or concatenation
+                    set_value_from_jmespath(
+                        complete_result, result_expression.expression,
+                        existing_value + result_value)
         merge_dicts(complete_result, self.non_aggregate_part)
         if self.resume_token is not None:
             complete_result['NextToken'] = self.resume_token
@@ -324,22 +402,23 @@ class Paginator(object):
             self._output_token, self._more_results,
             self._result_keys, self._non_aggregate_keys,
             self._limit_key,
-            page_params['max_items'],
-            page_params['starting_token'],
-            page_params['page_size'],
+            page_params['MaxItems'],
+            page_params['StartingToken'],
+            page_params['PageSize'],
             kwargs)
 
     def _extract_paging_params(self, kwargs):
-        max_items = kwargs.pop('max_items', None)
+        pagination_config = kwargs.pop('PaginationConfig', {})
+        max_items = pagination_config.get('MaxItems', None)
         if max_items is not None:
             max_items = int(max_items)
-        page_size = kwargs.pop('page_size', None)
+        page_size = pagination_config.get('PageSize', None)
         if page_size is not None:
             page_size = int(page_size)
         return {
-            'max_items': max_items,
-            'starting_token': kwargs.pop('starting_token', None),
-            'page_size': page_size,
+            'MaxItems': max_items,
+            'StartingToken': pagination_config.get('StartingToken', None),
+            'PageSize': page_size,
         }
 
 
@@ -362,60 +441,9 @@ class ResultKeyIterator(object):
         self.result_key = result_key
 
     def __iter__(self):
-        for _, page in self._pages_iterator:
+        for page in self._pages_iterator:
             results = self.result_key.search(page)
             if results is None:
                 results = []
             for result in results:
                 yield result
-
-
-# These two class use the Operation.call() interface that is
-# being deprecated.  This is here so that both interfaces can be
-# supported during a transition period.  Eventually these two
-# interfaces will be removed.
-class DeprecatedPageIterator(PageIterator):
-    def __init__(self, operation, endpoint, input_token,
-                 output_token, more_results,
-                 result_keys, non_aggregate_keys, limit_key, max_items,
-                 starting_token, page_size, op_kwargs):
-        super(DeprecatedPageIterator, self).__init__(
-            None, input_token, output_token, more_results, result_keys,
-            non_aggregate_keys, limit_key, max_items,
-            starting_token, page_size, op_kwargs)
-        self._operation = operation
-        self._endpoint = endpoint
-
-    def _make_request(self, current_kwargs):
-        return self._operation.call(self._endpoint, **current_kwargs)
-
-    def _extract_parsed_response(self, response):
-        return response[1]
-
-
-class DeprecatedPaginator(Paginator):
-    PAGE_ITERATOR_CLS = DeprecatedPageIterator
-
-    def __init__(self, operation, pagination_config):
-        super(DeprecatedPaginator, self).__init__(None, pagination_config)
-        self._operation = operation
-
-    def paginate(self, endpoint, **kwargs):
-        """Paginate responses to an operation.
-
-        The responses to some operations are too large for a single response.
-        When this happens, the service will indicate that there are more
-        results in its response.  This method handles the details of how
-        to detect when this happens and how to retrieve more results.
-
-        """
-        page_params = self._extract_paging_params(kwargs)
-        return self.PAGE_ITERATOR_CLS(
-            self._operation, endpoint, self._input_token,
-            self._output_token, self._more_results,
-            self._result_keys, self._non_aggregate_keys,
-            self._limit_key,
-            page_params['max_items'],
-            page_params['starting_token'],
-            page_params['page_size'],
-            kwargs)
