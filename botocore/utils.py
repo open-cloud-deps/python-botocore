@@ -24,7 +24,7 @@ from dateutil.tz import tzlocal, tzutc
 from botocore.exceptions import InvalidExpressionError, ConfigNotFound
 from botocore.exceptions import InvalidDNSNameError
 from botocore.compat import json, quote, zip_longest, urlsplit, urlunsplit
-from botocore.vendored import requests
+import requests
 from botocore.compat import OrderedDict
 
 

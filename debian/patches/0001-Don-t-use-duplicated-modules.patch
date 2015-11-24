@@ -1,0 +1,124 @@
+From 27b11cd3f127cf29074b225a65e74e2732d1422d Mon Sep 17 00:00:00 2001
+From: TANIGUCHI Takaki <takaki@asis.media-as.org>
+Date: Tue, 24 Nov 2015 20:40:16 +0900
+Subject: Don't use duplicated modules
+
+---
+ botocore/awsrequest.py   | 12 ++++++------
+ botocore/compat.py       |  4 ++--
+ botocore/endpoint.py     | 10 +++++-----
+ botocore/exceptions.py   |  2 +-
+ botocore/retryhandler.py |  4 ++--
+ botocore/utils.py        |  2 +-
+ 6 files changed, 17 insertions(+), 17 deletions(-)
+
+diff --git a/botocore/awsrequest.py b/botocore/awsrequest.py
+index 06d0871..6bd1ab4 100644
+--- a/botocore/awsrequest.py
++++ b/botocore/awsrequest.py
+@@ -22,15 +22,15 @@ from botocore.compat import six
+ from botocore.compat import HTTPHeaders, HTTPResponse, urlunsplit, urlsplit
+ from botocore.exceptions import UnseekableStreamError
+ from botocore.utils import percent_encode_sequence
+-from botocore.vendored.requests import models
+-from botocore.vendored.requests.sessions import REDIRECT_STATI
+-from botocore.vendored.requests.packages.urllib3.connection import \
++from requests import models
++from requests.sessions import REDIRECT_STATI
++from urllib3.connection import \
+     VerifiedHTTPSConnection
+-from botocore.vendored.requests.packages.urllib3.connection import \
++from urllib3.connection import \
+     HTTPConnection
+-from botocore.vendored.requests.packages.urllib3.connectionpool import \
++from urllib3.connectionpool import \
+     HTTPConnectionPool
+-from botocore.vendored.requests.packages.urllib3.connectionpool import \
++from urllib3.connectionpool import \
+     HTTPSConnectionPool
+ 
+ 
+diff --git a/botocore/compat.py b/botocore/compat.py
+index 343fc05..530f2e8 100644
+--- a/botocore/compat.py
++++ b/botocore/compat.py
+@@ -17,8 +17,8 @@ import sys
+ import inspect
+ import warnings
+ 
+-from botocore.vendored import six
+-from botocore.vendored.requests.packages.urllib3 import exceptions
++import six
++from urllib3 import exceptions
+ 
+ 
+ if six.PY3:
+diff --git a/botocore/endpoint.py b/botocore/endpoint.py
+index 623a4a4..b20ee03 100644
+--- a/botocore/endpoint.py
++++ b/botocore/endpoint.py
+@@ -17,10 +17,10 @@ import logging
+ import time
+ import threading
+ 
+-from botocore.vendored.requests.sessions import Session
+-from botocore.vendored.requests.utils import get_environ_proxies
+-from botocore.vendored.requests.exceptions import ConnectionError
+-from botocore.vendored import six
++from requests.sessions import Session
++from requests.utils import get_environ_proxies
++from requests.exceptions import ConnectionError
++import six
+ 
+ from botocore.awsrequest import create_request_object
+ from botocore.exceptions import BaseEndpointResolverError
+@@ -44,7 +44,7 @@ def convert_to_response_dict(http_response, operation_model):
+     This converts the requests library's HTTP response object to
+     a dictionary.
+ 
+-    :type http_response: botocore.vendored.requests.model.Response
++    :type http_response: requests.model.Response
+     :param http_response: The HTTP response from an AWS service request.
+ 
+     :rtype: dict
+diff --git a/botocore/exceptions.py b/botocore/exceptions.py
+index 3e93582..d970d4b 100644
+--- a/botocore/exceptions.py
++++ b/botocore/exceptions.py
+@@ -11,7 +11,7 @@
+ # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+ # ANY KIND, either express or implied. See the License for the specific
+ # language governing permissions and limitations under the License.
+-from botocore.vendored.requests.exceptions import ConnectionError
++from requests.exceptions import ConnectionError
+ 
+ 
+ class BotoCoreError(Exception):
+diff --git a/botocore/retryhandler.py b/botocore/retryhandler.py
+index e7e2f1d..dd417f9 100644
+--- a/botocore/retryhandler.py
++++ b/botocore/retryhandler.py
+@@ -17,8 +17,8 @@ import functools
+ import logging
+ from binascii import crc32
+ 
+-from botocore.vendored.requests import ConnectionError, Timeout
+-from botocore.vendored.requests.packages.urllib3.exceptions import ClosedPoolError
++from requests import ConnectionError, Timeout
++from requests.packages.urllib3.exceptions import ClosedPoolError
+ 
+ from botocore.exceptions import ChecksumError, EndpointConnectionError
+ 
+diff --git a/botocore/utils.py b/botocore/utils.py
+index 804a3bd..7d13af0 100644
+--- a/botocore/utils.py
++++ b/botocore/utils.py
+@@ -24,7 +24,7 @@ from dateutil.tz import tzlocal, tzutc
+ from botocore.exceptions import InvalidExpressionError, ConfigNotFound
+ from botocore.exceptions import InvalidDNSNameError
+ from botocore.compat import json, quote, zip_longest, urlsplit, urlunsplit
+-from botocore.vendored import requests
++import requests
+ from botocore.compat import OrderedDict
+ 
+ 
