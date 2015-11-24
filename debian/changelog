@@ -1,8 +1,12 @@
-python-botocore (1.3.9-1) UNRELEASED; urgency=medium
+python-botocore (1.3.9-1) unstable; urgency=medium
 
   * new upstream version
+  * Refresh debian patche.
+  * debian/control: Add python-mock to B-D.
+  * debian/rules: Skipt test. (It requires AWS credential(?).)
+  * debian/watch: Replace pypi.debian.net.
 
- -- TANIGUCHI Takaki <takaki@debian.org>  Tue, 24 Nov 2015 20:35:44 +0900
+ -- TANIGUCHI Takaki <takaki@debian.org>  Wed, 25 Nov 2015 00:14:28 +0900
 
 python-botocore (0.81.0-1) unstable; urgency=medium
 
