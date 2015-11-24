@@ -23,6 +23,7 @@ from dateutil.parser import parse
 from dateutil.tz import tzlocal
 
 import botocore.config
+import botocore.compat
 from botocore.compat import total_seconds
 from botocore.exceptions import UnknownCredentialError
 from botocore.exceptions import PartialCredentialsError
@@ -46,8 +47,10 @@ def create_credential_resolver(session):
     config_file = session.get_config_variable('config_file')
     metadata_timeout = session.get_config_variable('metadata_service_timeout')
     num_attempts = session.get_config_variable('metadata_service_num_attempts')
+
+    env_provider = EnvProvider()
     providers = [
-        EnvProvider(),
+        env_provider,
         SharedCredentialProvider(
             creds_filename=credential_file,
             profile_name=profile_name
@@ -63,6 +66,30 @@ def create_credential_resolver(session):
                 num_attempts=num_attempts)
         )
     ]
+
+    explicit_profile = session.get_config_variable('profile',
+                                                   methods=('instance',))
+    if explicit_profile is not None:
+        # An explicitly provided profile will negate an EnvProvider.
+        # We will defer to providers that understand the "profile"
+        # concept to retrieve credentials.
+        # The one edge case if is all three values are provided via
+        # env vars:
+        # export AWS_ACCESS_KEY_ID=foo
+        # export AWS_SECRET_ACCESS_KEY=bar
+        # export AWS_PROFILE=baz
+        # Then, just like our client() calls, the explicit credentials
+        # will take precedence.
+        #
+        # This precedence is enforced by leaving the EnvProvider in the chain.
+        # This means that the only way a "profile" would win is if the
+        # EnvProvider does not return credentials, which is what we want
+        # in this scenario.
+        providers.remove(env_provider)
+    else:
+        logger.debug('Skipping environment variable credential check'
+                     ' because profile name was explicitly set.')
+
     resolver = CredentialResolver(providers=providers)
     return resolver
 
@@ -97,6 +124,18 @@ class Credentials(object):
             method = 'explicit'
         self.method = method
 
+        self._normalize()
+
+    def _normalize(self):
+        # Keys would sometimes (accidentally) contain non-ascii characters.
+        # It would cause a confusing UnicodeDecodeError in Python 2.
+        # We explicitly convert them into unicode to avoid such error.
+        #
+        # Eventually the service will decide whether to accept the credential.
+        # This also complies with the behavior in Python 3.
+        self.access_key = botocore.compat.ensure_unicode(self.access_key)
+        self.secret_key = botocore.compat.ensure_unicode(self.secret_key)
+
 
 class RefreshableCredentials(Credentials):
     """
@@ -125,6 +164,11 @@ class RefreshableCredentials(Credentials):
         self._expiry_time = expiry_time
         self._time_fetcher = time_fetcher
         self.method = method
+        self._normalize()
+
+    def _normalize(self):
+        self._access_key = botocore.compat.ensure_unicode(self._access_key)
+        self._secret_key = botocore.compat.ensure_unicode(self._secret_key)
 
     @classmethod
     def create_from_metadata(cls, metadata, refresh_using, method):
@@ -201,6 +245,7 @@ class RefreshableCredentials(Credentials):
         self.token = data['token']
         self._expiry_time = parse(data['expiry_time'])
         logger.debug("Retrieved credentials will expire at: %s", self._expiry_time)
+        self._normalize()
 
 
 class CredentialProvider(object):
@@ -580,7 +625,7 @@ class CredentialResolver(object):
         # If we got here, no credentials could be found.
         # This feels like it should be an exception, but historically, ``None``
         # is returned.
-        # 
+        #
         # +1
         # -js
         return None

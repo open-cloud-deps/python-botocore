@@ -10,19 +10,21 @@
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
+import re
 import logging
 import datetime
 import hashlib
-import math
 import binascii
+import functools
 
 from six import string_types, text_type
 import dateutil.parser
 from dateutil.tz import tzlocal, tzutc
 
 from botocore.exceptions import InvalidExpressionError, ConfigNotFound
-from botocore.compat import json, quote, zip_longest
-import requests
+from botocore.exceptions import InvalidDNSNameError
+from botocore.compat import json, quote, zip_longest, urlsplit, urlunsplit
+from botocore.vendored import requests
 from botocore.compat import OrderedDict
 
 
@@ -34,11 +36,31 @@ METADATA_SECURITY_CREDENTIALS_URL = (
 # These are chars that do not need to be urlencoded.
 # Based on rfc2986, section 2.3
 SAFE_CHARS = '-._~'
+LABEL_RE = re.compile('[a-z0-9][a-z0-9\-]*[a-z0-9]')
+RESTRICTED_REGIONS = [
+    'us-gov-west-1',
+    'fips-us-gov-west-1',
+]
 
 
 class _RetriesExceededError(Exception):
     """Internal exception used when the number of retries are exceeded."""
     pass
+
+
+def get_service_module_name(service_model):
+    """Returns the module name for a service
+
+    This is the value used in both the documentation and client class name
+    """
+    name = service_model.metadata.get(
+        'serviceAbbreviation',
+        service_model.metadata.get(
+            'serviceFullName', service_model.service_name))
+    name = name.replace('Amazon', '')
+    name = name.replace('AWS', '')
+    name = re.sub('\W+', '', name)
+    return name
 
 
 def normalize_url_path(path):
@@ -89,8 +111,8 @@ def remove_dot_segments(url):
 
 
 def validate_jmespath_for_set(expression):
-    # Validates a limited jmespath expression to determine if we can set a value
-    # based on it. Only works with dotted paths.
+    # Validates a limited jmespath expression to determine if we can set a
+    # value based on it. Only works with dotted paths.
     if not expression or expression == '.':
         raise InvalidExpressionError(expression=expression)
 
@@ -115,10 +137,10 @@ def set_value_from_jmespath(source, expression, value, is_first=True):
         raise InvalidExpressionError(expression=expression)
 
     if remainder:
-        if not current_key in source:
+        if current_key not in source:
             # We've got something in the expression that's not present in the
-            # source (new key). If there's any more bits, we'll set the key with
-            # an empty dictionary.
+            # source (new key). If there's any more bits, we'll set the key
+            # with an empty dictionary.
             source[current_key] = {}
 
         return set_value_from_jmespath(
@@ -194,16 +216,27 @@ class InstanceMetadataFetcher(object):
         return final_data
 
 
-def merge_dicts(dict1, dict2):
+def merge_dicts(dict1, dict2, append_lists=False):
     """Given two dict, merge the second dict into the first.
 
     The dicts can have arbitrary nesting.
 
+    :param append_lists: If true, instead of clobbering a list with the new
+        value, append all of the new values onto the original list.
     """
     for key in dict2:
         if isinstance(dict2[key], dict):
             if key in dict1 and key in dict2:
                 merge_dicts(dict1[key], dict2[key])
+            else:
+                dict1[key] = dict2[key]
+        # If the value is a list and the ``append_lists`` flag is set,
+        # append the new values onto the original list
+        elif isinstance(dict2[key], list) and append_lists:
+            # The value in dict1 must be a list in order to append new
+            # values onto it.
+            if key in dict1 and isinstance(dict1[key], list):
+                dict1[key].extend(dict2[key])
             else:
                 dict1[key] = dict2[key]
         else:
@@ -217,7 +250,7 @@ def parse_key_val_file(filename, _open=open):
         with _open(filename) as f:
             contents = f.read()
             return parse_key_val_file_contents(contents)
-    except OSError as e:
+    except OSError:
         raise ConfigNotFound(path=filename)
 
 
@@ -245,6 +278,10 @@ def percent_encode_sequence(mapping, safe=SAFE_CHARS):
     * It has a default list of safe chars that don't need
       to be encoded, which matches what AWS services expect.
 
+    If any value in the input ``mapping`` is a list type,
+    then each list element wil be serialized.  This is the equivalent
+    to ``urlencode``'s ``doseq=True`` argument.
+
     This function should be preferred over the stdlib
     ``urlencode()`` function.
 
@@ -258,8 +295,13 @@ def percent_encode_sequence(mapping, safe=SAFE_CHARS):
     else:
         pairs = mapping
     for key, value in pairs:
-        encoded_pairs.append('%s=%s' % (percent_encode(key),
-                                        percent_encode(value)))
+        if isinstance(value, list):
+            for element in value:
+                encoded_pairs.append('%s=%s' % (percent_encode(key),
+                                                percent_encode(element)))
+        else:
+            encoded_pairs.append('%s=%s' % (percent_encode(key),
+                                            percent_encode(value)))
     return '&'.join(encoded_pairs)
 
 
@@ -528,3 +570,180 @@ class ArgumentGenerator(object):
         return OrderedDict([
             ('KeyName', self._generate_skeleton(value_shape, stack)),
         ])
+
+
+def is_valid_endpoint_url(endpoint_url):
+    """Verify the endpoint_url is valid.
+
+    :type endpoint_url: string
+    :param endpoint_url: An endpoint_url.  Must have at least a scheme
+        and a hostname.
+
+    :return: True if the endpoint url is valid. False otherwise.
+
+    """
+    parts = urlsplit(endpoint_url)
+    hostname = parts.hostname
+    if hostname is None:
+        return False
+    if len(hostname) > 255:
+        return False
+    if hostname[-1] == ".":
+        hostname = hostname[:-1]
+    allowed = re.compile(
+        "^((?!-)[A-Z\d-]{1,63}(?<!-)\.)*((?!-)[A-Z\d-]{1,63}(?<!-))$",
+        re.IGNORECASE)
+    return allowed.match(hostname)
+
+def check_dns_name(bucket_name):
+    """
+    Check to see if the ``bucket_name`` complies with the
+    restricted DNS naming conventions necessary to allow
+    access via virtual-hosting style.
+
+    Even though "." characters are perfectly valid in this DNS
+    naming scheme, we are going to punt on any name containing a
+    "." character because these will cause SSL cert validation
+    problems if we try to use virtual-hosting style addressing.
+    """
+    if '.' in bucket_name:
+        return False
+    n = len(bucket_name)
+    if n < 3 or n > 63:
+        # Wrong length
+        return False
+    if n == 1:
+        if not bucket_name.isalnum():
+            return False
+    match = LABEL_RE.match(bucket_name)
+    if match is None or match.end() != len(bucket_name):
+        return False
+    return True
+
+
+def fix_s3_host(request, signature_version, region_name, **kwargs):
+    """
+    This handler looks at S3 requests just before they are signed.
+    If there is a bucket name on the path (true for everything except
+    ListAllBuckets) it checks to see if that bucket name conforms to
+    the DNS naming conventions.  If it does, it alters the request to
+    use ``virtual hosting`` style addressing rather than ``path-style``
+    addressing.  This allows us to avoid 301 redirects for all
+    bucket names that can be CNAME'd.
+    """
+    # By default we do not use virtual hosted style addressing when
+    # signed with signature version 4.
+    if signature_version in ['s3v4', 'v4']:
+        return
+    elif not _allowed_region(region_name):
+        return
+    try:
+        switch_to_virtual_host_style(
+            request, signature_version, 's3.amazonaws.com')
+    except InvalidDNSNameError as e:
+        bucket_name = e.kwargs['bucket_name']
+        logger.debug('Not changing URI, bucket is not DNS compatible: %s',
+                     bucket_name)
+
+
+def switch_to_virtual_host_style(request, signature_version,
+                                 default_endpoint_url=None, **kwargs):
+    """
+    This is a handler to force virtual host style s3 addressing no matter
+    the signature version (which is taken in consideration for the default
+    case). If the bucket is not DNS compatible an InvalidDNSName is thrown.
+
+    :param request: A AWSRequest object that is about to be sent.
+    :param signature_version: The signature version to sign with
+    :param default_endpoint_url: The endpoint to use when switching to a
+        virtual style. If None is supplied, the virtual host will be
+        constructed from the url of the request.
+    """
+    if request.auth_path is not None:
+        # The auth_path has already been applied (this may be a
+        # retried request).  We don't need to perform this
+        # customization again.
+        return
+    elif _is_get_bucket_location_request(request):
+        # For the GetBucketLocation response, we should not be using
+        # the virtual host style addressing so we can avoid any sigv4
+        # issues.
+        logger.debug("Request is GetBucketLocation operation, not checking "
+                     "for DNS compatibility.")
+        return
+    parts = urlsplit(request.url)
+    request.auth_path = parts.path
+    path_parts = parts.path.split('/')
+
+    # Retrieve what the endpoint we will be prepending the bucket name to.
+    if default_endpoint_url is None:
+        default_endpoint_url = parts.netloc
+
+    if len(path_parts) > 1:
+        bucket_name = path_parts[1]
+        if not bucket_name:
+            # If the bucket name is empty we should not be checking for
+            # dns compatibility.
+            return
+        logger.debug('Checking for DNS compatible bucket for: %s',
+                     request.url)
+        if check_dns_name(bucket_name):
+            # If the operation is on a bucket, the auth_path must be
+            # terminated with a '/' character.
+            if len(path_parts) == 2:
+                if request.auth_path[-1] != '/':
+                    request.auth_path += '/'
+            path_parts.remove(bucket_name)
+            # At the very least the path must be a '/', such as with the
+            # CreateBucket operation when DNS style is being used. If this
+            # is not used you will get an empty path which is incorrect.
+            path = '/'.join(path_parts) or '/'
+            global_endpoint = default_endpoint_url
+            host = bucket_name + '.' + global_endpoint
+            new_tuple = (parts.scheme, host, path,
+                         parts.query, '')
+            new_uri = urlunsplit(new_tuple)
+            request.url = new_uri
+            logger.debug('URI updated to: %s', new_uri)
+        else:
+            raise InvalidDNSNameError(bucket_name=bucket_name)
+
+
+def _is_get_bucket_location_request(request):
+    return request.url.endswith('?location')
+
+
+def _allowed_region(region_name):
+    return region_name not in RESTRICTED_REGIONS
+
+
+def instance_cache(func):
+    """Method decorator for caching method calls to a single instance.
+
+    **This is not a general purpose caching decorator.**
+
+    In order to use this, you *must* provide an ``_instance_cache``
+    attribute on the instance.
+
+    This decorator is used to cache method calls.  The cache is only
+    scoped to a single instance though such that multiple instances
+    will maintain their own cache.  In order to keep things simple,
+    this decorator requires that you provide an ``_instance_cache``
+    attribute on your instance.
+
+    """
+    func_name = func.__name__
+
+    @functools.wraps(func)
+    def _cache_guard(self, *args, **kwargs):
+        cache_key = (func_name, args)
+        if kwargs:
+            kwarg_items = tuple(sorted(kwargs.items()))
+            cache_key = (func_name, args, kwarg_items)
+        result = self._instance_cache.get(cache_key)
+        if result is not None:
+            return result
+        result = func(self, *args, **kwargs)
+        self._instance_cache[cache_key] = result
+        return result
+    return _cache_guard
