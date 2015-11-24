@@ -1,0 +1,164 @@
+From ca6d1d26bed55fbd257fd85b3fa1800f6ef0d310 Mon Sep 17 00:00:00 2001
+From: TANIGUCHI Takaki <takaki@asis.media-as.org>
+Date: Tue, 24 Nov 2015 21:34:20 +0900
+Subject: Don't use duplicated modules (in tests)
+
+---
+ tests/integration/test_glacier.py                    | 2 +-
+ tests/integration/test_s3.py                         | 8 ++++----
+ tests/integration/test_smoke.py                      | 6 +++---
+ tests/unit/auth/test_signers.py                      | 2 +-
+ tests/unit/response_parsing/test_response_parsing.py | 2 +-
+ tests/unit/test_awsrequest.py                        | 2 +-
+ tests/unit/test_endpoint.py                          | 2 +-
+ tests/unit/test_response.py                          | 2 +-
+ tests/unit/test_retryhandler.py                      | 4 ++--
+ 9 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/tests/integration/test_glacier.py b/tests/integration/test_glacier.py
+index 23a7f34..96cedf0 100644
+--- a/tests/integration/test_glacier.py
++++ b/tests/integration/test_glacier.py
+@@ -13,7 +13,7 @@
+ from tests import unittest
+ 
+ from botocore.exceptions import ClientError
+-from botocore.vendored import six
++import six
+ import botocore.session
+ 
+ 
+diff --git a/tests/integration/test_s3.py b/tests/integration/test_s3.py
+index 7df606f..3e0b56c 100644
+--- a/tests/integration/test_s3.py
++++ b/tests/integration/test_s3.py
+@@ -24,13 +24,13 @@ from contextlib import closing
+ 
+ from nose.plugins.attrib import attr
+ 
+-from botocore.vendored.requests import adapters
+-from botocore.vendored.requests.exceptions import ConnectionError
++from requests import adapters
++from requests.exceptions import ConnectionError
+ from botocore.compat import six, zip_longest
+ import botocore.session
+ import botocore.auth
+ import botocore.credentials
+-import botocore.vendored.requests as requests
++import requests
+ from botocore.client import Config
+ 
+ 
+@@ -707,7 +707,7 @@ class TestS3SigV4Client(BaseS3ClientTest):
+                 raise ConnectionError("Simulated ConnectionError raised.")
+             else:
+                 return original_send(self, *args, **kwargs)
+-        with mock.patch('botocore.vendored.requests.adapters.HTTPAdapter.send',
++        with mock.patch('requests.adapters.HTTPAdapter.send',
+                         mock_http_adapter_send):
+             response = self.client.put_object(Bucket=self.bucket_name,
+                                               Key='foo.txt', Body=body)
+diff --git a/tests/integration/test_smoke.py b/tests/integration/test_smoke.py
+index 40d90a6..fbd5dd8 100644
+--- a/tests/integration/test_smoke.py
++++ b/tests/integration/test_smoke.py
+@@ -19,8 +19,8 @@ from nose.tools import assert_equals, assert_true
+ from botocore import xform_name
+ import botocore.session
+ from botocore.client import ClientError
+-from botocore.vendored.requests import adapters
+-from botocore.vendored.requests.exceptions import ConnectionError
++from requests import adapters
++from requests.exceptions import ConnectionError
+ 
+ 
+ # Mapping of service -> api calls to try.
+@@ -274,7 +274,7 @@ def _make_client_call_with_errors(client, operation_name, kwargs):
+             raise ConnectionError("Simulated ConnectionError raised.")
+         else:
+             return original_send(self, *args, **kwargs)
+-    with mock.patch('botocore.vendored.requests.adapters.HTTPAdapter.send',
++    with mock.patch('requests.adapters.HTTPAdapter.send',
+                     mock_http_adapter_send):
+         try:
+             response = operation(**kwargs)
+diff --git a/tests/unit/auth/test_signers.py b/tests/unit/auth/test_signers.py
+index 0aff078..678e9fc 100644
+--- a/tests/unit/auth/test_signers.py
++++ b/tests/unit/auth/test_signers.py
+@@ -25,7 +25,7 @@ import botocore.auth
+ import botocore.credentials
+ from botocore.compat import HTTPHeaders, urlsplit, parse_qs, six
+ from botocore.awsrequest import AWSRequest
+-from botocore.vendored.requests.models import Request
++from requests.models import Request
+ 
+ 
+ class BaseTestWithFixedDate(unittest.TestCase):
+diff --git a/tests/unit/response_parsing/test_response_parsing.py b/tests/unit/response_parsing/test_response_parsing.py
+index f76d01b..68c8450 100644
+--- a/tests/unit/response_parsing/test_response_parsing.py
++++ b/tests/unit/response_parsing/test_response_parsing.py
+@@ -20,7 +20,7 @@ import difflib
+ from tests import unittest, create_session
+ 
+ from mock import Mock
+-from botocore.vendored.requests.structures import CaseInsensitiveDict
++from requests.structures import CaseInsensitiveDict
+ 
+ import botocore.session
+ from botocore import xform_name
+diff --git a/tests/unit/test_awsrequest.py b/tests/unit/test_awsrequest.py
+index 1860d44..54bb37d 100644
+--- a/tests/unit/test_awsrequest.py
++++ b/tests/unit/test_awsrequest.py
+@@ -418,7 +418,7 @@ class TestAWSHTTPConnection(unittest.TestCase):
+         conn.sock = s
+         # Test that the standard library method was used by patching out
+         # the ``_tunnel`` method and seeing if the std lib method was called.
+-        with patch('botocore.vendored.requests.packages.urllib3.connection.'
++        with patch('requests.packages.urllib3.connection.'
+                    'HTTPConnection._tunnel') as mock_tunnel:
+             conn._tunnel()
+             self.assertTrue(mock_tunnel.called)
+diff --git a/tests/unit/test_endpoint.py b/tests/unit/test_endpoint.py
+index aeababf..745da12 100644
+--- a/tests/unit/test_endpoint.py
++++ b/tests/unit/test_endpoint.py
+@@ -14,7 +14,7 @@
+ from tests import unittest
+ 
+ from mock import Mock, patch
+-from botocore.vendored.requests import ConnectionError
++from requests import ConnectionError
+ 
+ from botocore.compat import six
+ from botocore.awsrequest import AWSRequest
+diff --git a/tests/unit/test_response.py b/tests/unit/test_response.py
+index 0d9375d..4cbc5c1 100644
+--- a/tests/unit/test_response.py
++++ b/tests/unit/test_response.py
+@@ -20,7 +20,7 @@ import botocore
+ from botocore import response
+ from botocore.compat import six
+ from botocore.exceptions import IncompleteReadError
+-from botocore.vendored.requests.models import Response, Request
++from requests.models import Response, Request
+ 
+ XMLBODY1 = (b'<?xml version="1.0" encoding="UTF-8"?><Error>'
+             b'<Code>AccessDenied</Code>'
+diff --git a/tests/unit/test_retryhandler.py b/tests/unit/test_retryhandler.py
+index fa146b1..1d9dd5b 100644
+--- a/tests/unit/test_retryhandler.py
++++ b/tests/unit/test_retryhandler.py
+@@ -16,8 +16,8 @@
+ from tests import unittest
+ 
+ import mock
+-from botocore.vendored.requests import ConnectionError, Timeout
+-from botocore.vendored.requests.packages.urllib3.exceptions import ClosedPoolError
++from requests import ConnectionError, Timeout
++from urllib3.exceptions import ClosedPoolError
+ 
+ from botocore import retryhandler
+ from botocore.exceptions import ChecksumError
