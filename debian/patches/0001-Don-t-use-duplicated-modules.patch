@@ -1,8 +1,9 @@
-From 27b11cd3f127cf29074b225a65e74e2732d1422d Mon Sep 17 00:00:00 2001
+From dea6f47712096194b7f3d07a81a92164ecd6ac5e Mon Sep 17 00:00:00 2001
 From: TANIGUCHI Takaki <takaki@asis.media-as.org>
 Date: Tue, 24 Nov 2015 20:40:16 +0900
 Subject: Don't use duplicated modules
 
+fix path
 ---
  botocore/awsrequest.py   | 12 ++++++------
  botocore/compat.py       |  4 ++--
@@ -39,7 +40,7 @@ index 06d0871..6bd1ab4 100644
  
  
 diff --git a/botocore/compat.py b/botocore/compat.py
-index 343fc05..530f2e8 100644
+index 0bc4f2d..f77763f 100644
 --- a/botocore/compat.py
 +++ b/botocore/compat.py
 @@ -17,8 +17,8 @@ import sys
@@ -82,7 +83,7 @@ index 623a4a4..b20ee03 100644
  
      :rtype: dict
 diff --git a/botocore/exceptions.py b/botocore/exceptions.py
-index 3e93582..d970d4b 100644
+index 48cedc9..45f0c93 100644
 --- a/botocore/exceptions.py
 +++ b/botocore/exceptions.py
 @@ -11,7 +11,7 @@
@@ -95,7 +96,7 @@ index 3e93582..d970d4b 100644
  
  class BotoCoreError(Exception):
 diff --git a/botocore/retryhandler.py b/botocore/retryhandler.py
-index e7e2f1d..dd417f9 100644
+index e7e2f1d..473ad15 100644
 --- a/botocore/retryhandler.py
 +++ b/botocore/retryhandler.py
 @@ -17,8 +17,8 @@ import functools
@@ -105,12 +106,12 @@ index e7e2f1d..dd417f9 100644
 -from botocore.vendored.requests import ConnectionError, Timeout
 -from botocore.vendored.requests.packages.urllib3.exceptions import ClosedPoolError
 +from requests import ConnectionError, Timeout
-+from requests.packages.urllib3.exceptions import ClosedPoolError
++from urllib3.exceptions import ClosedPoolError
  
  from botocore.exceptions import ChecksumError, EndpointConnectionError
  
 diff --git a/botocore/utils.py b/botocore/utils.py
-index 804a3bd..7d13af0 100644
+index 61aa551..1894b6d 100644
 --- a/botocore/utils.py
 +++ b/botocore/utils.py
 @@ -24,7 +24,7 @@ from dateutil.tz import tzlocal, tzutc

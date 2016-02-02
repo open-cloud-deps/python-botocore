@@ -1,4 +1,4 @@
-From ca6d1d26bed55fbd257fd85b3fa1800f6ef0d310 Mon Sep 17 00:00:00 2001
+From c8132ea126fb557832d6a3a4f0c52275f00634b4 Mon Sep 17 00:00:00 2001
 From: TANIGUCHI Takaki <takaki@asis.media-as.org>
 Date: Tue, 24 Nov 2015 21:34:20 +0900
 Subject: Don't use duplicated modules (in tests)
@@ -29,7 +29,7 @@ index 23a7f34..96cedf0 100644
  
  
 diff --git a/tests/integration/test_s3.py b/tests/integration/test_s3.py
-index 7df606f..3e0b56c 100644
+index fdee6ba..e6a8a9d 100644
 --- a/tests/integration/test_s3.py
 +++ b/tests/integration/test_s3.py
 @@ -24,13 +24,13 @@ from contextlib import closing
@@ -49,7 +49,7 @@ index 7df606f..3e0b56c 100644
  from botocore.client import Config
  
  
-@@ -707,7 +707,7 @@ class TestS3SigV4Client(BaseS3ClientTest):
+@@ -750,7 +750,7 @@ class TestS3SigV4Client(BaseS3ClientTest):
                  raise ConnectionError("Simulated ConnectionError raised.")
              else:
                  return original_send(self, *args, **kwargs)

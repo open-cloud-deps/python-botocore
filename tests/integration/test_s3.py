@@ -333,6 +333,20 @@ class TestS3Objects(TestS3BaseWithBucket):
             Bucket=self.bucket_name, Key=key_name)
         self.assertEqual(parsed['Body'].read().decode('utf-8'), 'foo')
 
+    def test_unicode_system_character(self):
+        # Verify we can use a unicode system character which would normally
+        # break the xml parser
+        key_name = 'foo\x08'
+        self.create_object(key_name)
+        parsed = self.client.list_objects(Bucket=self.bucket_name)
+        self.assertEqual(len(parsed['Contents']), 1)
+        self.assertEqual(parsed['Contents'][0]['Key'], key_name)
+
+        parsed = self.client.list_objects(Bucket=self.bucket_name,
+                                          EncodingType='url')
+        self.assertEqual(len(parsed['Contents']), 1)
+        self.assertEqual(parsed['Contents'][0]['Key'], 'foo%08')
+
     def test_thread_safe_auth(self):
         self.auth_paths = []
         self.session.register('before-sign', self.increment_auth)
@@ -399,6 +413,35 @@ class TestS3Copy(TestS3BaseWithBucket):
         self.client.copy_object(
             Bucket=self.bucket_name, Key=key_name2,
             CopySource='%s/%s' % (self.bucket_name, key_name))
+
+        # Now verify we can retrieve the copied object.
+        data = self.client.get_object(
+            Bucket=self.bucket_name, Key=key_name2)
+        self.assertEqual(data['Body'].read().decode('utf-8'), 'foo')
+
+    def test_copy_with_query_string(self):
+        key_name = 'a+b/foo?notVersionid=bar'
+        self.create_object(key_name=key_name)
+
+        key_name2 = key_name + 'bar'
+        self.client.copy_object(
+            Bucket=self.bucket_name, Key=key_name2,
+            CopySource='%s/%s' % (self.bucket_name, key_name))
+
+        # Now verify we can retrieve the copied object.
+        data = self.client.get_object(
+            Bucket=self.bucket_name, Key=key_name2)
+        self.assertEqual(data['Body'].read().decode('utf-8'), 'foo')
+
+    def test_can_copy_with_dict_form(self):
+        key_name = 'a+b/foo?versionId=abcd'
+        self.create_object(key_name=key_name)
+
+        key_name2 = key_name + 'bar'
+        self.client.copy_object(
+            Bucket=self.bucket_name, Key=key_name2,
+            CopySource={'Bucket': self.bucket_name,
+                        'Key': key_name})
 
         # Now verify we can retrieve the copied object.
         data = self.client.get_object(

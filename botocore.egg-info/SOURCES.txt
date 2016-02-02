@@ -36,6 +36,7 @@ botocore.egg-info/requires.txt
 botocore.egg-info/top_level.txt
 botocore/data/_endpoints.json
 botocore/data/_retry.json
+botocore/data/acm/2015-12-08/service-2.json
 botocore/data/apigateway/2015-07-09/paginators-1.json
 botocore/data/apigateway/2015-07-09/service-2.json
 botocore/data/autoscaling/2011-01-01/paginators-1.json
@@ -57,6 +58,15 @@ botocore/data/cloudfront/2015-04-17/waiters-2.json
 botocore/data/cloudfront/2015-07-27/paginators-1.json
 botocore/data/cloudfront/2015-07-27/service-2.json
 botocore/data/cloudfront/2015-07-27/waiters-2.json
+botocore/data/cloudfront/2015-09-17/paginators-1.json
+botocore/data/cloudfront/2015-09-17/service-2.json
+botocore/data/cloudfront/2015-09-17/waiters-2.json
+botocore/data/cloudfront/2016-01-13/paginators-1.json
+botocore/data/cloudfront/2016-01-13/service-2.json
+botocore/data/cloudfront/2016-01-13/waiters-2.json
+botocore/data/cloudfront/2016-01-28/paginators-1.json
+botocore/data/cloudfront/2016-01-28/service-2.json
+botocore/data/cloudfront/2016-01-28/waiters-2.json
 botocore/data/cloudhsm/2014-05-30/service-2.json
 botocore/data/cloudsearch/2011-02-01/service-2.json
 botocore/data/cloudsearch/2013-01-01/service-2.json
@@ -94,6 +104,7 @@ botocore/data/ec2/2015-04-15/waiters-2.json
 botocore/data/ec2/2015-10-01/paginators-1.json
 botocore/data/ec2/2015-10-01/service-2.json
 botocore/data/ec2/2015-10-01/waiters-2.json
+botocore/data/ecr/2015-09-21/service-2.json
 botocore/data/ecs/2014-11-13/paginators-1.json
 botocore/data/ecs/2014-11-13/service-2.json
 botocore/data/ecs/2014-11-13/waiters-2.json
@@ -115,6 +126,7 @@ botocore/data/emr/2009-03-31/paginators-1.json
 botocore/data/emr/2009-03-31/service-2.json
 botocore/data/emr/2009-03-31/waiters-2.json
 botocore/data/es/2015-01-01/service-2.json
+botocore/data/events/2014-02-03/service-2.json
 botocore/data/firehose/2015-08-04/service-2.json
 botocore/data/glacier/2012-06-01/paginators-1.json
 botocore/data/glacier/2012-06-01/service-2.json
@@ -129,6 +141,7 @@ botocore/data/iot/2015-05-28/service-2.json
 botocore/data/kinesis/2013-12-02/paginators-1.json
 botocore/data/kinesis/2013-12-02/service-2.json
 botocore/data/kinesis/2013-12-02/waiters-2.json
+botocore/data/kms/2014-11-01/paginators-1.json
 botocore/data/kms/2014-11-01/service-2.json
 botocore/data/lambda/2014-11-11/service-2.json
 botocore/data/lambda/2015-03-31/paginators-1.json
@@ -164,7 +177,9 @@ botocore/data/ses/2010-12-01/service-2.json
 botocore/data/ses/2010-12-01/waiters-2.json
 botocore/data/sns/2010-03-31/paginators-1.json
 botocore/data/sns/2010-03-31/service-2.json
+botocore/data/sqs/2012-11-05/examples-1.json
 botocore/data/sqs/2012-11-05/service-2.json
+botocore/data/ssm/2014-11-06/paginators-1.json
 botocore/data/ssm/2014-11-06/service-2.json
 botocore/data/storagegateway/2013-06-30/paginators-1.json
 botocore/data/storagegateway/2013-06-30/service-2.json
@@ -184,6 +199,7 @@ botocore/docs/paginator.py
 botocore/docs/params.py
 botocore/docs/service.py
 botocore/docs/shape.py
+botocore/docs/sharedexample.py
 botocore/docs/utils.py
 botocore/docs/waiter.py
 botocore/docs/bcdoc/__init__.py
@@ -284,6 +300,7 @@ docs/source/development/designnotes.rst
 docs/source/development/index.rst
 docs/source/reference/index.rst
 docs/source/reference/loaders.rst
+docs/source/reference/response.rst
 docs/source/topics/events.rst
 docs/source/topics/index.rst
 docs/source/topics/paginators.rst
@@ -291,6 +308,7 @@ docs/source/tutorial/index.rst
 tests/__init__.py
 tests/cmd-runner
 tests/acceptance/features/environment.py
+tests/acceptance/features/smoke/acm/acm.feature
 tests/acceptance/features/smoke/autoscaling/autoscaling.feature
 tests/acceptance/features/smoke/cloudformation/cloudformation.feature
 tests/acceptance/features/smoke/cloudfront/cloudfront.feature
@@ -347,6 +365,7 @@ tests/functional/__init__.py
 tests/functional/test_client_class_names.py
 tests/functional/test_cloudsearchdomain.py
 tests/functional/test_iot_data.py
+tests/functional/test_loaders.py
 tests/functional/test_machinelearning.py
 tests/functional/test_model_completeness.py
 tests/functional/test_public_apis.py
@@ -358,6 +377,7 @@ tests/functional/docs/test_autoscaling.py
 tests/functional/docs/test_ec2.py
 tests/functional/docs/test_glacier.py
 tests/functional/docs/test_s3.py
+tests/functional/docs/test_streaming_body.py
 tests/functional/leak/__init__.py
 tests/functional/leak/test_resource_leaks.py
 tests/integration/__init__.py
@@ -589,6 +609,7 @@ tests/unit/docs/test_method.py
 tests/unit/docs/test_paginator.py
 tests/unit/docs/test_params.py
 tests/unit/docs/test_service.py
+tests/unit/docs/test_sharedexample.py
 tests/unit/docs/test_utils.py
 tests/unit/docs/test_waiter.py
 tests/unit/docs/bcdoc/__init__.py
