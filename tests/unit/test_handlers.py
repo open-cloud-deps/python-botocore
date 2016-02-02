@@ -62,29 +62,58 @@ class TestHandlers(BaseSessionTest):
     def test_disable_signing(self):
         self.assertEqual(handlers.disable_signing(), botocore.UNSIGNED)
 
-    def test_quote_source_header(self):
-        for op in ('UploadPartCopy', 'CopyObject'):
-            event = 'before-call.s3.%s' % op
-            params = {'headers': {'x-amz-copy-source': 'foo++bar.txt'}}
-            m = mock.Mock()
-            self.session.emit(event, params=params, model=m)
-            self.assertEqual(
-                params['headers']['x-amz-copy-source'], 'foo%2B%2Bbar.txt')
-
-    def test_only_quote_url_path_not_query_string(self):
-        request = {
-            'headers': {'x-amz-copy-source': '/foo/bar++baz?versionId=123'}
-        }
-        handlers.quote_source_header(request)
-        self.assertEqual(request['headers']['x-amz-copy-source'],
+    def test_only_quote_url_path_not_version_id(self):
+        params = {'CopySource': '/foo/bar++baz?versionId=123'}
+        handlers.handle_copy_source_param(params)
+        self.assertEqual(params['CopySource'],
                          '/foo/bar%2B%2Bbaz?versionId=123')
 
-    def test_quote_source_header_needs_no_changes(self):
-        request = {
-            'headers': {'x-amz-copy-source': '/foo/bar?versionId=123'}
+    def test_only_version_id_is_special_cased(self):
+        params = {'CopySource': '/foo/bar++baz?notVersion=foo+'}
+        handlers.handle_copy_source_param(params)
+        self.assertEqual(params['CopySource'],
+                         '/foo/bar%2B%2Bbaz%3FnotVersion%3Dfoo%2B')
+
+    def test_copy_source_with_multiple_questions(self):
+        params = {'CopySource': '/foo/bar+baz?a=baz+?versionId=a+'}
+        handlers.handle_copy_source_param(params)
+        self.assertEqual(params['CopySource'],
+                         '/foo/bar%2Bbaz%3Fa%3Dbaz%2B?versionId=a+')
+
+    def test_copy_source_supports_dict(self):
+        params = {
+            'CopySource': {'Bucket': 'foo', 'Key': 'keyname+'}
         }
-        handlers.quote_source_header(request)
-        self.assertEqual(request['headers']['x-amz-copy-source'],
+        handlers.handle_copy_source_param(params)
+        self.assertEqual(params['CopySource'], 'foo/keyname%2B')
+
+    def test_copy_source_ignored_if_not_dict(self):
+        params = {
+            'CopySource': 'stringvalue'
+        }
+        handlers.handle_copy_source_param(params)
+        self.assertEqual(params['CopySource'], 'stringvalue')
+
+    def test_copy_source_supports_optional_version_id(self):
+        params = {
+            'CopySource': {'Bucket': 'foo',
+                           'Key': 'keyname+',
+                           'VersionId': 'asdf+'}
+        }
+        handlers.handle_copy_source_param(params)
+        self.assertEqual(params['CopySource'],
+                         # Note, versionId is not url encoded.
+                         'foo/keyname%2B?versionId=asdf+')
+
+    def test_copy_source_has_validation_failure(self):
+        with self.assertRaisesRegexp(ParamValidationError, 'Key'):
+            handlers.handle_copy_source_param(
+                {'CopySource': {'Bucket': 'foo'}})
+
+    def test_quote_source_header_needs_no_changes(self):
+        params = {'CopySource': '/foo/bar?versionId=123'}
+        handlers.handle_copy_source_param(params)
+        self.assertEqual(params['CopySource'],
                          '/foo/bar?versionId=123')
 
     def test_presigned_url_already_present(self):
@@ -562,6 +591,71 @@ class TestHandlers(BaseSessionTest):
 
     def test_validation_is_noop_if_no_bucket_param_exists(self):
         self.assertIsNone(handlers.validate_bucket_name(params={}))
+
+    def test_set_encoding_type(self):
+        params = {}
+        context = {}
+        handlers.set_list_objects_encoding_type_url(params, context=context)
+        self.assertEqual(params['EncodingType'], 'url')
+        self.assertTrue(context['EncodingTypeAutoSet'])
+
+        params['EncodingType'] = 'new_value'
+        handlers.set_list_objects_encoding_type_url(params, context={})
+        self.assertEqual(params['EncodingType'], 'new_value')
+
+    def test_decode_list_objects(self):
+        parsed = {
+            'Contents': [{'Key': "%C3%A7%C3%B6s%25asd%08"}],
+            'EncodingType': 'url',
+        }
+        context = {'EncodingTypeAutoSet': True}
+        handlers.decode_list_object(parsed, context=context)
+        self.assertEqual(parsed['Contents'][0]['Key'], u'\xe7\xf6s%asd\x08')
+
+    def test_decode_list_objects_does_not_decode_without_context(self):
+        parsed = {
+            'Contents': [{'Key': "%C3%A7%C3%B6s%25asd"}],
+            'EncodingType': 'url',
+        }
+        handlers.decode_list_object(parsed, context={})
+        self.assertEqual(parsed['Contents'][0]['Key'], u'%C3%A7%C3%B6s%25asd')
+
+    def test_decode_list_objects_with_marker(self):
+        parsed = {
+            'Marker': "%C3%A7%C3%B6s%25%20asd%08+c",
+            'EncodingType': 'url',
+        }
+        context = {'EncodingTypeAutoSet': True}
+        handlers.decode_list_object(parsed, context=context)
+        self.assertEqual(parsed['Marker'], u'\xe7\xf6s% asd\x08 c')
+
+    def test_decode_list_objects_with_nextmarker(self):
+        parsed = {
+            'NextMarker': "%C3%A7%C3%B6s%25%20asd%08+c",
+            'EncodingType': 'url',
+        }
+        context = {'EncodingTypeAutoSet': True}
+        handlers.decode_list_object(parsed, context=context)
+        self.assertEqual(parsed['NextMarker'], u'\xe7\xf6s% asd\x08 c')
+
+    def test_decode_list_objects_with_common_prefixes(self):
+        parsed = {
+            'CommonPrefixes': [{'Prefix': "%C3%A7%C3%B6s%25%20asd%08+c"}],
+            'EncodingType': 'url',
+        }
+        context = {'EncodingTypeAutoSet': True}
+        handlers.decode_list_object(parsed, context=context)
+        self.assertEqual(parsed['CommonPrefixes'][0]['Prefix'],
+                         u'\xe7\xf6s% asd\x08 c')
+
+    def test_decode_list_objects_with_delimiter(self):
+        parsed = {
+            'Delimiter': "%C3%A7%C3%B6s%25%20asd%08+c",
+            'EncodingType': 'url',
+        }
+        context = {'EncodingTypeAutoSet': True}
+        handlers.decode_list_object(parsed, context=context)
+        self.assertEqual(parsed['Delimiter'], u'\xe7\xf6s% asd\x08 c')
 
 
 class TestRetryHandlerOrder(BaseSessionTest):
