@@ -1,10 +1,10 @@
-python-botocore (1.3.23-1) UNRELEASED; urgency=medium
+python-botocore (1.3.23-1) unstable; urgency=medium
 
   * Import python-botocore_1.3.23.orig.tar.gz (Closes: #798015)
   * debian/patches: Fix improt package path. (Closes: #806761)
   * debian/copyright: Change to Apache-2.0. (Closes: #812317)
 
- -- TANIGUCHI Takaki <takaki@debian.org>  Wed, 25 Nov 2015 01:33:23 +0900
+ -- TANIGUCHI Takaki <takaki@debian.org>  Tue, 02 Feb 2016 18:05:47 +0900
 
 python-botocore (1.3.9-1) unstable; urgency=medium
 
