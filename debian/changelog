@@ -1,3 +1,9 @@
+python-botocore (1.3.23-2) UNRELEASED; urgency=medium
+
+  * Fixed VCS URL (https)
+
+ -- Ondřej Nový <novy@ondrej.org>  Tue, 29 Mar 2016 21:56:38 +0200
+
 python-botocore (1.3.23-1) unstable; urgency=medium
 
   * Import python-botocore_1.3.23.orig.tar.gz (Closes: #798015)
