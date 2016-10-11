@@ -1,6 +1,7 @@
 python-botocore (1.4.60-1) UNRELEASED; urgency=medium
 
   * New upstream release (Closes: #833014)
+  * Bump Standards-Version to 3.9.8 (no changes).
 
  -- TANIGUCHI Takaki <takaki@debian.org>  Tue, 11 Oct 2016 09:33:47 +0900
 
