@@ -9,5 +9,5 @@ export PYBUILD_NAME=botocore
 %:
 	dh $@ --with python2,python3 --buildsystem=pybuild
 
-override_dh_auto_test:
+# override_dh_auto_test:
 
