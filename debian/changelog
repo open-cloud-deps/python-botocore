@@ -1,3 +1,9 @@
+python-botocore (1.4.60-1) UNRELEASED; urgency=medium
+
+  * New upstream release (Closes: #833014)
+
+ -- TANIGUCHI Takaki <takaki@debian.org>  Tue, 11 Oct 2016 09:33:47 +0900
+
 python-botocore (1.3.23-1) unstable; urgency=medium
 
   * Import python-botocore_1.3.23.orig.tar.gz (Closes: #798015)
