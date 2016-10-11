@@ -1,4 +1,4 @@
-From c8132ea126fb557832d6a3a4f0c52275f00634b4 Mon Sep 17 00:00:00 2001
+From 5c5e1a92b3d77902c86018008cf6a2e022eddd38 Mon Sep 17 00:00:00 2001
 From: TANIGUCHI Takaki <takaki@asis.media-as.org>
 Date: Tue, 24 Nov 2015 21:34:20 +0900
 Subject: Don't use duplicated modules (in tests)
@@ -29,7 +29,7 @@ index 23a7f34..96cedf0 100644
  
  
 diff --git a/tests/integration/test_s3.py b/tests/integration/test_s3.py
-index fdee6ba..e6a8a9d 100644
+index 83e2cc2..89994a4 100644
 --- a/tests/integration/test_s3.py
 +++ b/tests/integration/test_s3.py
 @@ -24,13 +24,13 @@ from contextlib import closing
@@ -46,10 +46,10 @@ index fdee6ba..e6a8a9d 100644
  import botocore.credentials
 -import botocore.vendored.requests as requests
 +import requests
- from botocore.client import Config
+ from botocore.config import Config
+ from botocore.exceptions import ClientError
  
- 
-@@ -750,7 +750,7 @@ class TestS3SigV4Client(BaseS3ClientTest):
+@@ -777,7 +777,7 @@ class TestS3SigV4Client(BaseS3ClientTest):
                  raise ConnectionError("Simulated ConnectionError raised.")
              else:
                  return original_send(self, *args, **kwargs)
@@ -59,7 +59,7 @@ index fdee6ba..e6a8a9d 100644
              response = self.client.put_object(Bucket=self.bucket_name,
                                                Key='foo.txt', Body=body)
 diff --git a/tests/integration/test_smoke.py b/tests/integration/test_smoke.py
-index 40d90a6..fbd5dd8 100644
+index 1a475ed..b8b30e5 100644
 --- a/tests/integration/test_smoke.py
 +++ b/tests/integration/test_smoke.py
 @@ -19,8 +19,8 @@ from nose.tools import assert_equals, assert_true
@@ -73,7 +73,7 @@ index 40d90a6..fbd5dd8 100644
  
  
  # Mapping of service -> api calls to try.
-@@ -274,7 +274,7 @@ def _make_client_call_with_errors(client, operation_name, kwargs):
+@@ -292,7 +292,7 @@ def _make_client_call_with_errors(client, operation_name, kwargs):
              raise ConnectionError("Simulated ConnectionError raised.")
          else:
              return original_send(self, *args, **kwargs)
@@ -83,7 +83,7 @@ index 40d90a6..fbd5dd8 100644
          try:
              response = operation(**kwargs)
 diff --git a/tests/unit/auth/test_signers.py b/tests/unit/auth/test_signers.py
-index 0aff078..678e9fc 100644
+index f084576..aa140d3 100644
 --- a/tests/unit/auth/test_signers.py
 +++ b/tests/unit/auth/test_signers.py
 @@ -25,7 +25,7 @@ import botocore.auth
@@ -96,7 +96,7 @@ index 0aff078..678e9fc 100644
  
  class BaseTestWithFixedDate(unittest.TestCase):
 diff --git a/tests/unit/response_parsing/test_response_parsing.py b/tests/unit/response_parsing/test_response_parsing.py
-index f76d01b..68c8450 100644
+index 97249d6..afa6474 100644
 --- a/tests/unit/response_parsing/test_response_parsing.py
 +++ b/tests/unit/response_parsing/test_response_parsing.py
 @@ -20,7 +20,7 @@ import difflib
@@ -109,7 +109,7 @@ index f76d01b..68c8450 100644
  import botocore.session
  from botocore import xform_name
 diff --git a/tests/unit/test_awsrequest.py b/tests/unit/test_awsrequest.py
-index 1860d44..54bb37d 100644
+index d37aa24..e43d627 100644
 --- a/tests/unit/test_awsrequest.py
 +++ b/tests/unit/test_awsrequest.py
 @@ -418,7 +418,7 @@ class TestAWSHTTPConnection(unittest.TestCase):
@@ -122,20 +122,20 @@ index 1860d44..54bb37d 100644
              conn._tunnel()
              self.assertTrue(mock_tunnel.called)
 diff --git a/tests/unit/test_endpoint.py b/tests/unit/test_endpoint.py
-index aeababf..745da12 100644
+index b7f9cbf..038a3b7 100644
 --- a/tests/unit/test_endpoint.py
 +++ b/tests/unit/test_endpoint.py
-@@ -14,7 +14,7 @@
- from tests import unittest
+@@ -15,7 +15,7 @@ from tests import unittest
  
- from mock import Mock, patch
+ from mock import Mock, patch, sentinel
+ from nose.tools import assert_equals
 -from botocore.vendored.requests import ConnectionError
 +from requests import ConnectionError
  
  from botocore.compat import six
  from botocore.awsrequest import AWSRequest
 diff --git a/tests/unit/test_response.py b/tests/unit/test_response.py
-index 0d9375d..4cbc5c1 100644
+index 7b2eb25..35d07c8 100644
 --- a/tests/unit/test_response.py
 +++ b/tests/unit/test_response.py
 @@ -20,7 +20,7 @@ import botocore
@@ -148,7 +148,7 @@ index 0d9375d..4cbc5c1 100644
  XMLBODY1 = (b'<?xml version="1.0" encoding="UTF-8"?><Error>'
              b'<Code>AccessDenied</Code>'
 diff --git a/tests/unit/test_retryhandler.py b/tests/unit/test_retryhandler.py
-index fa146b1..1d9dd5b 100644
+index 3f31a69..a6f05b8 100644
 --- a/tests/unit/test_retryhandler.py
 +++ b/tests/unit/test_retryhandler.py
 @@ -16,8 +16,8 @@

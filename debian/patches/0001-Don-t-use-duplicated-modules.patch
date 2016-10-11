@@ -1,4 +1,4 @@
-From dea6f47712096194b7f3d07a81a92164ecd6ac5e Mon Sep 17 00:00:00 2001
+From 58b7b506aa3d8f265d18cfa7211d3fa42712403c Mon Sep 17 00:00:00 2001
 From: TANIGUCHI Takaki <takaki@asis.media-as.org>
 Date: Tue, 24 Nov 2015 20:40:16 +0900
 Subject: Don't use duplicated modules
@@ -7,14 +7,14 @@ fix path
 ---
  botocore/awsrequest.py   | 12 ++++++------
  botocore/compat.py       |  4 ++--
- botocore/endpoint.py     | 10 +++++-----
+ botocore/endpoint.py     | 12 ++++++------
  botocore/exceptions.py   |  2 +-
  botocore/retryhandler.py |  4 ++--
  botocore/utils.py        |  2 +-
- 6 files changed, 17 insertions(+), 17 deletions(-)
+ 6 files changed, 18 insertions(+), 18 deletions(-)
 
 diff --git a/botocore/awsrequest.py b/botocore/awsrequest.py
-index 06d0871..6bd1ab4 100644
+index a667bb5..1329c8a 100644
 --- a/botocore/awsrequest.py
 +++ b/botocore/awsrequest.py
 @@ -22,15 +22,15 @@ from botocore.compat import six
@@ -40,40 +40,43 @@ index 06d0871..6bd1ab4 100644
  
  
 diff --git a/botocore/compat.py b/botocore/compat.py
-index 0bc4f2d..f77763f 100644
+index dbd5113..b5bcaa0 100644
 --- a/botocore/compat.py
 +++ b/botocore/compat.py
-@@ -17,8 +17,8 @@ import sys
- import inspect
- import warnings
+@@ -19,9 +19,9 @@ import warnings
+ import hashlib
+ import logging
  
 -from botocore.vendored import six
--from botocore.vendored.requests.packages.urllib3 import exceptions
 +import six
+ from botocore.exceptions import MD5UnavailableError
+-from botocore.vendored.requests.packages.urllib3 import exceptions
 +from urllib3 import exceptions
  
+ logger = logging.getLogger(__name__)
  
- if six.PY3:
 diff --git a/botocore/endpoint.py b/botocore/endpoint.py
-index 623a4a4..b20ee03 100644
+index 228d43d..990a4b9 100644
 --- a/botocore/endpoint.py
 +++ b/botocore/endpoint.py
-@@ -17,10 +17,10 @@ import logging
+@@ -17,11 +17,11 @@ import logging
  import time
  import threading
  
+-from botocore.vendored.requests.adapters import HTTPAdapter
 -from botocore.vendored.requests.sessions import Session
 -from botocore.vendored.requests.utils import get_environ_proxies
 -from botocore.vendored.requests.exceptions import ConnectionError
 -from botocore.vendored import six
++from requests.adapters import HTTPAdapter
 +from requests.sessions import Session
 +from requests.utils import get_environ_proxies
 +from requests.exceptions import ConnectionError
 +import six
  
  from botocore.awsrequest import create_request_object
- from botocore.exceptions import BaseEndpointResolverError
-@@ -44,7 +44,7 @@ def convert_to_response_dict(http_response, operation_model):
+ from botocore.exceptions import UnknownEndpointError
+@@ -52,7 +52,7 @@ def convert_to_response_dict(http_response, operation_model):
      This converts the requests library's HTTP response object to
      a dictionary.
  
@@ -83,20 +86,20 @@ index 623a4a4..b20ee03 100644
  
      :rtype: dict
 diff --git a/botocore/exceptions.py b/botocore/exceptions.py
-index 48cedc9..45f0c93 100644
+index f0fd172..3ac7d3b 100644
 --- a/botocore/exceptions.py
 +++ b/botocore/exceptions.py
-@@ -11,7 +11,7 @@
- # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+@@ -12,7 +12,7 @@
  # ANY KIND, either express or implied. See the License for the specific
  # language governing permissions and limitations under the License.
+ from __future__ import unicode_literals
 -from botocore.vendored.requests.exceptions import ConnectionError
 +from requests.exceptions import ConnectionError
  
  
  class BotoCoreError(Exception):
 diff --git a/botocore/retryhandler.py b/botocore/retryhandler.py
-index e7e2f1d..473ad15 100644
+index 09b59e5..58913ec 100644
 --- a/botocore/retryhandler.py
 +++ b/botocore/retryhandler.py
 @@ -17,8 +17,8 @@ import functools
@@ -111,12 +114,12 @@ index e7e2f1d..473ad15 100644
  from botocore.exceptions import ChecksumError, EndpointConnectionError
  
 diff --git a/botocore/utils.py b/botocore/utils.py
-index 61aa551..1894b6d 100644
+index 6218b8a..4339acd 100644
 --- a/botocore/utils.py
 +++ b/botocore/utils.py
-@@ -24,7 +24,7 @@ from dateutil.tz import tzlocal, tzutc
- from botocore.exceptions import InvalidExpressionError, ConfigNotFound
- from botocore.exceptions import InvalidDNSNameError
+@@ -28,7 +28,7 @@ from botocore.exceptions import InvalidExpressionError, ConfigNotFound
+ from botocore.exceptions import InvalidDNSNameError, ClientError
+ from botocore.exceptions import MetadataRetrievalError
  from botocore.compat import json, quote, zip_longest, urlsplit, urlunsplit
 -from botocore.vendored import requests
 +import requests
