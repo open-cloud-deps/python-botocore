@@ -1,4 +1,4 @@
-From 58b7b506aa3d8f265d18cfa7211d3fa42712403c Mon Sep 17 00:00:00 2001
+From 9c646b991cffe67a2de513866b915439e08d907a Mon Sep 17 00:00:00 2001
 From: TANIGUCHI Takaki <takaki@asis.media-as.org>
 Date: Tue, 24 Nov 2015 20:40:16 +0900
 Subject: Don't use duplicated modules
@@ -7,11 +7,12 @@ fix path
 ---
  botocore/awsrequest.py   | 12 ++++++------
  botocore/compat.py       |  4 ++--
- botocore/endpoint.py     | 12 ++++++------
+ botocore/endpoint.py     | 14 +++++++-------
  botocore/exceptions.py   |  2 +-
  botocore/retryhandler.py |  4 ++--
+ botocore/stub.py         |  2 +-
  botocore/utils.py        |  2 +-
- 6 files changed, 18 insertions(+), 18 deletions(-)
+ 7 files changed, 20 insertions(+), 20 deletions(-)
 
 diff --git a/botocore/awsrequest.py b/botocore/awsrequest.py
 index a667bb5..1329c8a 100644
@@ -56,7 +57,7 @@ index dbd5113..b5bcaa0 100644
  logger = logging.getLogger(__name__)
  
 diff --git a/botocore/endpoint.py b/botocore/endpoint.py
-index 228d43d..990a4b9 100644
+index 228d43d..1fa1eef 100644
 --- a/botocore/endpoint.py
 +++ b/botocore/endpoint.py
 @@ -17,11 +17,11 @@ import logging
@@ -76,6 +77,15 @@ index 228d43d..990a4b9 100644
  
  from botocore.awsrequest import create_request_object
  from botocore.exceptions import UnknownEndpointError
+@@ -40,7 +40,7 @@ MAX_POOL_CONNECTIONS = 10
+ filter_ssl_warnings()
+ 
+ try:
+-    from botocore.vendored.requests.packages.urllib3.contrib import pyopenssl
++    from urllib3.contrib import pyopenssl
+     pyopenssl.extract_from_urllib3()
+ except ImportError:
+     pass
 @@ -52,7 +52,7 @@ def convert_to_response_dict(http_response, operation_model):
      This converts the requests library's HTTP response object to
      a dictionary.
@@ -113,6 +123,19 @@ index 09b59e5..58913ec 100644
  
  from botocore.exceptions import ChecksumError, EndpointConnectionError
  
+diff --git a/botocore/stub.py b/botocore/stub.py
+index 9413ba8..ca657b6 100644
+--- a/botocore/stub.py
++++ b/botocore/stub.py
+@@ -17,7 +17,7 @@ from pprint import pformat
+ from botocore.validate import validate_parameters
+ from botocore.exceptions import ParamValidationError, \
+     StubResponseError, StubAssertionError
+-from botocore.vendored.requests.models import Response
++from requests.models import Response
+ 
+ 
+ ANY = object()
 diff --git a/botocore/utils.py b/botocore/utils.py
 index 6218b8a..4339acd 100644
 --- a/botocore/utils.py

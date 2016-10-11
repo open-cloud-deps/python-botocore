@@ -17,7 +17,7 @@ from pprint import pformat
 from botocore.validate import validate_parameters
 from botocore.exceptions import ParamValidationError, \
     StubResponseError, StubAssertionError
-from botocore.vendored.requests.models import Response
+from requests.models import Response
 
 
 ANY = object()

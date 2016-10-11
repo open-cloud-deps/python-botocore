@@ -1,4 +1,4 @@
-From 5c5e1a92b3d77902c86018008cf6a2e022eddd38 Mon Sep 17 00:00:00 2001
+From d362c7b19b96d362c91e754220245d197343943b Mon Sep 17 00:00:00 2001
 From: TANIGUCHI Takaki <takaki@asis.media-as.org>
 Date: Tue, 24 Nov 2015 21:34:20 +0900
 Subject: Don't use duplicated modules (in tests)
@@ -13,7 +13,8 @@ Subject: Don't use duplicated modules (in tests)
  tests/unit/test_endpoint.py                          | 2 +-
  tests/unit/test_response.py                          | 2 +-
  tests/unit/test_retryhandler.py                      | 4 ++--
- 9 files changed, 15 insertions(+), 15 deletions(-)
+ tests/unit/test_utils.py                             | 2 +-
+ 10 files changed, 16 insertions(+), 16 deletions(-)
 
 diff --git a/tests/integration/test_glacier.py b/tests/integration/test_glacier.py
 index 23a7f34..96cedf0 100644
@@ -162,3 +163,16 @@ index 3f31a69..a6f05b8 100644
  
  from botocore import retryhandler
  from botocore.exceptions import ChecksumError
+diff --git a/tests/unit/test_utils.py b/tests/unit/test_utils.py
+index 5d5cd85..2feee5e 100644
+--- a/tests/unit/test_utils.py
++++ b/tests/unit/test_utils.py
+@@ -25,7 +25,7 @@ from botocore.exceptions import InvalidExpressionError, ConfigNotFound
+ from botocore.exceptions import ClientError
+ from botocore.exceptions import InvalidDNSNameError, MetadataRetrievalError
+ from botocore.model import ServiceModel
+-from botocore.vendored import requests
++import requests
+ from botocore.utils import remove_dot_segments
+ from botocore.utils import normalize_url_path
+ from botocore.utils import validate_jmespath_for_set

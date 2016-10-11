@@ -40,7 +40,7 @@ MAX_POOL_CONNECTIONS = 10
 filter_ssl_warnings()
 
 try:
-    from botocore.vendored.requests.packages.urllib3.contrib import pyopenssl
+    from urllib3.contrib import pyopenssl
     pyopenssl.extract_from_urllib3()
 except ImportError:
     pass
