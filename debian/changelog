@@ -1,8 +1,12 @@
-python-botocore (1.4.60-2) UNRELEASED; urgency=medium
+python-botocore (1.4.64-1) UNRELEASED; urgency=medium
 
+  [ Ondřej Nový ]
   * Fixed VCS URL (https)
 
- -- Ondřej Nový <novy@ondrej.org>  Tue, 29 Mar 2016 21:56:38 +0200
+  [ TANIGUCHI Takaki ]
+  * New upstream version 1.4.64
+
+ -- TANIGUCHI Takaki <takaki@debian.org>  Thu, 20 Oct 2016 16:04:06 +0900
 
 python-botocore (1.4.60-1) unstable; urgency=medium
 
