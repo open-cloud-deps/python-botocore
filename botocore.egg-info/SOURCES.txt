@@ -83,6 +83,9 @@ botocore/data/cloudfront/2016-08-20/waiters-2.json
 botocore/data/cloudfront/2016-09-07/paginators-1.json
 botocore/data/cloudfront/2016-09-07/service-2.json
 botocore/data/cloudfront/2016-09-07/waiters-2.json
+botocore/data/cloudfront/2016-09-29/paginators-1.json
+botocore/data/cloudfront/2016-09-29/service-2.json
+botocore/data/cloudfront/2016-09-29/waiters-2.json
 botocore/data/cloudhsm/2014-05-30/service-2.json
 botocore/data/cloudsearch/2011-02-01/service-2.json
 botocore/data/cloudsearch/2013-01-01/service-2.json
@@ -408,6 +411,7 @@ tests/functional/__init__.py
 tests/functional/test_alias.py
 tests/functional/test_apigateway.py
 tests/functional/test_client_class_names.py
+tests/functional/test_client_metadata.py
 tests/functional/test_cloudsearchdomain.py
 tests/functional/test_credentials.py
 tests/functional/test_iot_data.py
