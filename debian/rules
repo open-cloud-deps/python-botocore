@@ -9,5 +9,9 @@ export PYBUILD_NAME=botocore
 %:
 	dh $@ --with python2,python3 --buildsystem=pybuild
 
+override_dh_fixperms:
+	dh_fixperms
+	chmod -x $(CURDIR)/debian/python*-botocore/usr/lib/python*/dist-packages/botocore/data/*/*/*.json
+
 override_dh_auto_test:
 	true
