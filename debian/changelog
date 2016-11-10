@@ -1,9 +1,9 @@
-python-botocore (1.4.70-1) UNRELEASED; urgency=medium
+python-botocore (1.4.70-1) unstable; urgency=medium
 
   * New upstream version 1.4.70
-  * revert master modifications
+  * debian/patches: Refresh patches.
 
- -- TANIGUCHI Takaki <takaki@asis.media-as.org>  Thu, 10 Nov 2016 11:29:23 +0900
+ -- TANIGUCHI Takaki <takaki@debian.org>  Thu, 10 Nov 2016 11:34:51 +0900
 
 python-botocore (1.4.64-1) unstable; urgency=medium
 
