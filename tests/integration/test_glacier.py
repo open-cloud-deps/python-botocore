@@ -13,7 +13,7 @@
 from tests import unittest
 
 from botocore.exceptions import ClientError
-import six
+from botocore.vendored import six
 import botocore.session
 
 

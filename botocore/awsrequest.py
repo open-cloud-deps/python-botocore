@@ -22,15 +22,15 @@ from botocore.compat import six
 from botocore.compat import HTTPHeaders, HTTPResponse, urlunsplit, urlsplit
 from botocore.exceptions import UnseekableStreamError
 from botocore.utils import percent_encode_sequence
-from requests import models
-from requests.sessions import REDIRECT_STATI
-from urllib3.connection import \
+from botocore.vendored.requests import models
+from botocore.vendored.requests.sessions import REDIRECT_STATI
+from botocore.vendored.requests.packages.urllib3.connection import \
     VerifiedHTTPSConnection
-from urllib3.connection import \
+from botocore.vendored.requests.packages.urllib3.connection import \
     HTTPConnection
-from urllib3.connectionpool import \
+from botocore.vendored.requests.packages.urllib3.connectionpool import \
     HTTPConnectionPool
-from urllib3.connectionpool import \
+from botocore.vendored.requests.packages.urllib3.connectionpool import \
     HTTPSConnectionPool
 
 

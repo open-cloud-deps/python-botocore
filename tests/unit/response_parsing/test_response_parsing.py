@@ -20,7 +20,7 @@ import difflib
 from tests import unittest, create_session
 
 from mock import Mock
-from requests.structures import CaseInsensitiveDict
+from botocore.vendored.requests.structures import CaseInsensitiveDict
 
 import botocore.session
 from botocore import xform_name

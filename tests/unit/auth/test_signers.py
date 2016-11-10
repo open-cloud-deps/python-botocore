@@ -25,7 +25,7 @@ import botocore.auth
 import botocore.credentials
 from botocore.compat import HTTPHeaders, urlsplit, parse_qs, six
 from botocore.awsrequest import AWSRequest
-from requests.models import Request
+from botocore.vendored.requests.models import Request
 
 
 class BaseTestWithFixedDate(unittest.TestCase):
