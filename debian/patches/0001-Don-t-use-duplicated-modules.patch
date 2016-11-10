@@ -14,11 +14,11 @@ fix path
  botocore/utils.py        |  2 +-
  7 files changed, 20 insertions(+), 20 deletions(-)
 
-diff --git a/botocore/awsrequest.py b/botocore/awsrequest.py
-index a667bb5..1329c8a 100644
---- a/botocore/awsrequest.py
-+++ b/botocore/awsrequest.py
-@@ -22,15 +22,15 @@ from botocore.compat import six
+Index: python-botocore/botocore/awsrequest.py
+===================================================================
+--- python-botocore.orig/botocore/awsrequest.py	2016-11-10 11:30:23.478805141 +0900
++++ python-botocore/botocore/awsrequest.py	2016-11-10 11:30:23.466805008 +0900
+@@ -22,15 +22,15 @@
  from botocore.compat import HTTPHeaders, HTTPResponse, urlunsplit, urlsplit
  from botocore.exceptions import UnseekableStreamError
  from botocore.utils import percent_encode_sequence
@@ -40,11 +40,11 @@ index a667bb5..1329c8a 100644
      HTTPSConnectionPool
  
  
-diff --git a/botocore/compat.py b/botocore/compat.py
-index dbd5113..b5bcaa0 100644
---- a/botocore/compat.py
-+++ b/botocore/compat.py
-@@ -19,9 +19,9 @@ import warnings
+Index: python-botocore/botocore/compat.py
+===================================================================
+--- python-botocore.orig/botocore/compat.py	2016-11-10 11:30:23.478805141 +0900
++++ python-botocore/botocore/compat.py	2016-11-10 11:30:23.466805008 +0900
+@@ -19,9 +19,9 @@
  import hashlib
  import logging
  
@@ -56,11 +56,11 @@ index dbd5113..b5bcaa0 100644
  
  logger = logging.getLogger(__name__)
  
-diff --git a/botocore/endpoint.py b/botocore/endpoint.py
-index 228d43d..1fa1eef 100644
---- a/botocore/endpoint.py
-+++ b/botocore/endpoint.py
-@@ -17,11 +17,11 @@ import logging
+Index: python-botocore/botocore/endpoint.py
+===================================================================
+--- python-botocore.orig/botocore/endpoint.py	2016-11-10 11:30:23.478805141 +0900
++++ python-botocore/botocore/endpoint.py	2016-11-10 11:30:23.466805008 +0900
+@@ -17,11 +17,11 @@
  import time
  import threading
  
@@ -77,7 +77,7 @@ index 228d43d..1fa1eef 100644
  
  from botocore.awsrequest import create_request_object
  from botocore.exceptions import UnknownEndpointError
-@@ -40,7 +40,7 @@ MAX_POOL_CONNECTIONS = 10
+@@ -40,7 +40,7 @@
  filter_ssl_warnings()
  
  try:
@@ -86,7 +86,7 @@ index 228d43d..1fa1eef 100644
      pyopenssl.extract_from_urllib3()
  except ImportError:
      pass
-@@ -52,7 +52,7 @@ def convert_to_response_dict(http_response, operation_model):
+@@ -52,7 +52,7 @@
      This converts the requests library's HTTP response object to
      a dictionary.
  
@@ -95,10 +95,10 @@ index 228d43d..1fa1eef 100644
      :param http_response: The HTTP response from an AWS service request.
  
      :rtype: dict
-diff --git a/botocore/exceptions.py b/botocore/exceptions.py
-index f0fd172..3ac7d3b 100644
---- a/botocore/exceptions.py
-+++ b/botocore/exceptions.py
+Index: python-botocore/botocore/exceptions.py
+===================================================================
+--- python-botocore.orig/botocore/exceptions.py	2016-11-10 11:30:23.478805141 +0900
++++ python-botocore/botocore/exceptions.py	2016-11-10 11:30:23.466805008 +0900
 @@ -12,7 +12,7 @@
  # ANY KIND, either express or implied. See the License for the specific
  # language governing permissions and limitations under the License.
@@ -108,11 +108,11 @@ index f0fd172..3ac7d3b 100644
  
  
  class BotoCoreError(Exception):
-diff --git a/botocore/retryhandler.py b/botocore/retryhandler.py
-index 09b59e5..58913ec 100644
---- a/botocore/retryhandler.py
-+++ b/botocore/retryhandler.py
-@@ -17,8 +17,8 @@ import functools
+Index: python-botocore/botocore/retryhandler.py
+===================================================================
+--- python-botocore.orig/botocore/retryhandler.py	2016-11-10 11:30:23.478805141 +0900
++++ python-botocore/botocore/retryhandler.py	2016-11-10 11:30:23.466805008 +0900
+@@ -17,8 +17,8 @@
  import logging
  from binascii import crc32
  
@@ -123,11 +123,11 @@ index 09b59e5..58913ec 100644
  
  from botocore.exceptions import ChecksumError, EndpointConnectionError
  
-diff --git a/botocore/stub.py b/botocore/stub.py
-index 9413ba8..ca657b6 100644
---- a/botocore/stub.py
-+++ b/botocore/stub.py
-@@ -17,7 +17,7 @@ from pprint import pformat
+Index: python-botocore/botocore/stub.py
+===================================================================
+--- python-botocore.orig/botocore/stub.py	2016-11-10 11:30:23.478805141 +0900
++++ python-botocore/botocore/stub.py	2016-11-10 11:30:23.466805008 +0900
+@@ -17,7 +17,7 @@
  from botocore.validate import validate_parameters
  from botocore.exceptions import ParamValidationError, \
      StubResponseError, StubAssertionError
@@ -135,12 +135,12 @@ index 9413ba8..ca657b6 100644
 +from requests.models import Response
  
  
- ANY = object()
-diff --git a/botocore/utils.py b/botocore/utils.py
-index 6218b8a..4339acd 100644
---- a/botocore/utils.py
-+++ b/botocore/utils.py
-@@ -28,7 +28,7 @@ from botocore.exceptions import InvalidExpressionError, ConfigNotFound
+ class _ANY(object):
+Index: python-botocore/botocore/utils.py
+===================================================================
+--- python-botocore.orig/botocore/utils.py	2016-11-10 11:30:23.478805141 +0900
++++ python-botocore/botocore/utils.py	2016-11-10 11:30:23.466805008 +0900
+@@ -28,7 +28,7 @@
  from botocore.exceptions import InvalidDNSNameError, ClientError
  from botocore.exceptions import MetadataRetrievalError
  from botocore.compat import json, quote, zip_longest, urlsplit, urlunsplit
