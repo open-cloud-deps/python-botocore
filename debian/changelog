@@ -1,3 +1,9 @@
+python-botocore (1.5.7-1) UNRELEASED; urgency=medium
+
+  * New upstream version 1.5.7
+
+ -- TANIGUCHI Takaki <takaki@debian.org>  Thu, 02 Feb 2017 17:33:21 +0900
+
 python-botocore (1.4.70-1) unstable; urgency=medium
 
   * New upstream version 1.4.70
