@@ -15,7 +15,8 @@
 from tests import unittest, BaseEnvVar
 import os
 import botocore.exceptions
-from botocore.configloader import raw_config_parse, load_config
+from botocore.configloader import raw_config_parse, load_config, \
+    multi_file_load_config
 
 
 def path(filename):
@@ -62,10 +63,45 @@ class TestConfigLoader(BaseEnvVar):
         self.assertEqual(config['s3']['signature_version'], 's3v4')
         self.assertEqual(config['cloudwatch']['signature_version'], 'v4')
 
+    def test_nested_hierarchy_with_no_subsection_parsing(self):
+        filename = path('aws_config_nested')
+        raw_config = raw_config_parse(filename, False)['default']
+        self.assertEqual(raw_config['aws_access_key_id'], 'foo')
+        self.assertEqual(raw_config['region'], 'us-west-2')
+        # Specifying False for pase_subsections in raw_config_parse
+        # will make sure that indented sections such as singature_version
+        # will not be treated as another subsection but rather
+        # its literal value.
+        self.assertEqual(
+            raw_config['cloudwatch'], '\nsignature_version = v4')
+        self.assertEqual(
+            raw_config['s3'],
+            '\nsignature_version = s3v4'
+            '\naddressing_style = path'
+        )
+
     def test_nested_bad_config(self):
         filename = path('aws_config_nested_bad')
         with self.assertRaises(botocore.exceptions.ConfigParseError):
             loaded_config = load_config(filename)
+
+    def test_multi_file_load(self):
+        filenames = [path('aws_config_other'),
+                     path('aws_config'),
+                     path('aws_third_config'),
+                     path('aws_config_notfound')]
+        loaded_config = multi_file_load_config(*filenames)
+        config = loaded_config['profiles']['default']
+        self.assertEqual(config['aws_access_key_id'], 'other_foo')
+        self.assertEqual(config['aws_secret_access_key'], 'other_bar')
+        second_config = loaded_config['profiles']['personal']
+        self.assertEqual(second_config['aws_access_key_id'], 'fie')
+        self.assertEqual(second_config['aws_secret_access_key'], 'baz')
+        self.assertEqual(second_config['aws_security_token'], 'fiebaz')
+        third_config = loaded_config['profiles']['third']
+        self.assertEqual(third_config['aws_access_key_id'], 'third_fie')
+        self.assertEqual(third_config['aws_secret_access_key'], 'third_baz')
+        self.assertEqual(third_config['aws_security_token'], 'third_fiebaz')
 
 
 if __name__ == "__main__":

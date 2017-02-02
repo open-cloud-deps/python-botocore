@@ -14,6 +14,7 @@ botocore/config.py
 botocore/configloader.py
 botocore/credentials.py
 botocore/endpoint.py
+botocore/errorfactory.py
 botocore/exceptions.py
 botocore/handlers.py
 botocore/hooks.py
@@ -45,9 +46,12 @@ botocore/data/apigateway/2015-07-09/paginators-1.json
 botocore/data/apigateway/2015-07-09/service-2.json
 botocore/data/application-autoscaling/2016-02-06/paginators-1.json
 botocore/data/application-autoscaling/2016-02-06/service-2.json
+botocore/data/appstream/2016-12-01/service-2.json
 botocore/data/autoscaling/2011-01-01/paginators-1.json
 botocore/data/autoscaling/2011-01-01/service-2.json
+botocore/data/batch/2016-08-10/service-2.json
 botocore/data/budgets/2016-10-20/service-2.json
+botocore/data/clouddirectory/2016-05-10/service-2.json
 botocore/data/cloudformation/2010-05-15/paginators-1.json
 botocore/data/cloudformation/2010-05-15/service-2.json
 botocore/data/cloudformation/2010-05-15/waiters-2.json
@@ -87,6 +91,9 @@ botocore/data/cloudfront/2016-09-07/waiters-2.json
 botocore/data/cloudfront/2016-09-29/paginators-1.json
 botocore/data/cloudfront/2016-09-29/service-2.json
 botocore/data/cloudfront/2016-09-29/waiters-2.json
+botocore/data/cloudfront/2016-11-25/paginators-1.json
+botocore/data/cloudfront/2016-11-25/service-2.json
+botocore/data/cloudfront/2016-11-25/waiters-2.json
 botocore/data/cloudhsm/2014-05-30/service-2.json
 botocore/data/cloudsearch/2011-02-01/service-2.json
 botocore/data/cloudsearch/2013-01-01/service-2.json
@@ -94,6 +101,7 @@ botocore/data/cloudsearchdomain/2013-01-01/service-2.json
 botocore/data/cloudtrail/2013-11-01/service-2.json
 botocore/data/cloudwatch/2010-08-01/paginators-1.json
 botocore/data/cloudwatch/2010-08-01/service-2.json
+botocore/data/codebuild/2016-10-06/service-2.json
 botocore/data/codecommit/2015-04-13/paginators-1.json
 botocore/data/codecommit/2015-04-13/service-2.json
 botocore/data/codedeploy/2014-10-06/service-2.json
@@ -102,7 +110,9 @@ botocore/data/codepipeline/2015-07-09/service-2.json
 botocore/data/cognito-identity/2014-06-30/service-2.json
 botocore/data/cognito-idp/2016-04-18/service-2.json
 botocore/data/cognito-sync/2014-06-30/service-2.json
+botocore/data/config/2014-11-12/paginators-1.json
 botocore/data/config/2014-11-12/service-2.json
+botocore/data/cur/2017-01-06/service-2.json
 botocore/data/datapipeline/2012-10-29/paginators-1.json
 botocore/data/datapipeline/2012-10-29/service-2.json
 botocore/data/devicefarm/2015-06-23/paginators-1.json
@@ -137,6 +147,10 @@ botocore/data/ec2/2016-09-15/examples-1.json
 botocore/data/ec2/2016-09-15/paginators-1.json
 botocore/data/ec2/2016-09-15/service-2.json
 botocore/data/ec2/2016-09-15/waiters-2.json
+botocore/data/ec2/2016-11-15/examples-1.json
+botocore/data/ec2/2016-11-15/paginators-1.json
+botocore/data/ec2/2016-11-15/service-2.json
+botocore/data/ec2/2016-11-15/waiters-2.json
 botocore/data/ecr/2015-09-21/paginators-1.json
 botocore/data/ecr/2015-09-21/service-2.json
 botocore/data/ecs/2014-11-13/paginators-1.json
@@ -169,6 +183,8 @@ botocore/data/firehose/2015-08-04/service-2.json
 botocore/data/gamelift/2015-10-01/service-2.json
 botocore/data/glacier/2012-06-01/paginators-1.json
 botocore/data/glacier/2012-06-01/service-2.json
+botocore/data/health/2016-08-04/paginators-1.json
+botocore/data/health/2016-08-04/service-2.json
 botocore/data/iam/2010-05-08/paginators-1.json
 botocore/data/iam/2010-05-08/service-2.json
 botocore/data/iam/2010-05-08/waiters-2.json
@@ -187,6 +203,8 @@ botocore/data/kms/2014-11-01/service-2.json
 botocore/data/lambda/2014-11-11/service-2.json
 botocore/data/lambda/2015-03-31/paginators-1.json
 botocore/data/lambda/2015-03-31/service-2.json
+botocore/data/lightsail/2016-11-28/paginators-1.json
+botocore/data/lightsail/2016-11-28/service-2.json
 botocore/data/logs/2014-03-28/paginators-1.json
 botocore/data/logs/2014-03-28/service-2.json
 botocore/data/machinelearning/2014-12-12/paginators-1.json
@@ -196,15 +214,21 @@ botocore/data/marketplacecommerceanalytics/2015-07-01/service-2.json
 botocore/data/meteringmarketplace/2016-01-14/service-2.json
 botocore/data/opsworks/2013-02-18/service-2.json
 botocore/data/opsworks/2013-02-18/waiters-2.json
+botocore/data/opsworkscm/2016-11-01/service-2.json
+botocore/data/opsworkscm/2016-11-01/waiters-2.json
+botocore/data/pinpoint/2016-12-01/service-2.json
+botocore/data/polly/2016-06-10/service-2.json
 botocore/data/rds/2014-09-01/paginators-1.json
 botocore/data/rds/2014-09-01/service-2.json
 botocore/data/rds/2014-09-01/waiters-2.json
 botocore/data/rds/2014-10-31/paginators-1.json
 botocore/data/rds/2014-10-31/service-2.json
+botocore/data/rds/2014-10-31/service-2.sdk-extras.json
 botocore/data/rds/2014-10-31/waiters-2.json
 botocore/data/redshift/2012-12-01/paginators-1.json
 botocore/data/redshift/2012-12-01/service-2.json
 botocore/data/redshift/2012-12-01/waiters-2.json
+botocore/data/rekognition/2016-06-27/service-2.json
 botocore/data/route53/2013-04-01/paginators-1.json
 botocore/data/route53/2013-04-01/service-2.json
 botocore/data/route53/2013-04-01/waiters-2.json
@@ -219,6 +243,7 @@ botocore/data/servicecatalog/2015-12-10/service-2.json
 botocore/data/ses/2010-12-01/paginators-1.json
 botocore/data/ses/2010-12-01/service-2.json
 botocore/data/ses/2010-12-01/waiters-2.json
+botocore/data/shield/2016-06-02/service-2.json
 botocore/data/sms/2016-10-24/service-2.json
 botocore/data/snowball/2016-06-30/service-2.json
 botocore/data/sns/2010-03-31/paginators-1.json
@@ -227,6 +252,7 @@ botocore/data/sqs/2012-11-05/examples-1.json
 botocore/data/sqs/2012-11-05/service-2.json
 botocore/data/ssm/2014-11-06/paginators-1.json
 botocore/data/ssm/2014-11-06/service-2.json
+botocore/data/stepfunctions/2016-11-23/service-2.json
 botocore/data/storagegateway/2013-06-30/paginators-1.json
 botocore/data/storagegateway/2013-06-30/service-2.json
 botocore/data/sts/2011-06-15/service-2.json
@@ -234,8 +260,11 @@ botocore/data/support/2013-04-15/paginators-1.json
 botocore/data/support/2013-04-15/service-2.json
 botocore/data/swf/2012-01-25/paginators-1.json
 botocore/data/swf/2012-01-25/service-2.json
+botocore/data/waf-regional/2016-11-28/service-2.json
+botocore/data/waf/2015-08-24/paginators-1.json
 botocore/data/waf/2015-08-24/service-2.json
 botocore/data/workspaces/2015-04-08/service-2.json
+botocore/data/xray/2016-04-12/service-2.json
 botocore/docs/__init__.py
 botocore/docs/client.py
 botocore/docs/docstring.py
@@ -417,6 +446,8 @@ tests/functional/test_client_metadata.py
 tests/functional/test_cloudformation.py
 tests/functional/test_cloudsearchdomain.py
 tests/functional/test_credentials.py
+tests/functional/test_ec2.py
+tests/functional/test_endpoints.py
 tests/functional/test_iot_data.py
 tests/functional/test_loaders.py
 tests/functional/test_machinelearning.py
@@ -424,6 +455,7 @@ tests/functional/test_model_completeness.py
 tests/functional/test_paginate.py
 tests/functional/test_paginator_config.py
 tests/functional/test_public_apis.py
+tests/functional/test_rds.py
 tests/functional/test_regions.py
 tests/functional/test_s3.py
 tests/functional/test_session.py
@@ -468,9 +500,11 @@ tests/unit/test_compat.py
 tests/unit/test_configloader.py
 tests/unit/test_credentials.py
 tests/unit/test_endpoint.py
+tests/unit/test_errorfactory.py
 tests/unit/test_exceptions.py
 tests/unit/test_handlers.py
 tests/unit/test_hooks.py
+tests/unit/test_idempotency.py
 tests/unit/test_loaders.py
 tests/unit/test_model.py
 tests/unit/test_paginate.py
@@ -649,6 +683,7 @@ tests/unit/cfg/aws_config_nested_bad
 tests/unit/cfg/aws_config_nocreds
 tests/unit/cfg/aws_config_other
 tests/unit/cfg/aws_credentials
+tests/unit/cfg/aws_third_config
 tests/unit/cfg/boto_config
 tests/unit/cfg/boto_config_empty
 tests/unit/cfg/foo_config

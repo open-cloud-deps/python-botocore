@@ -100,7 +100,6 @@ def create_credential_resolver(session):
         # EnvProvider does not return credentials, which is what we want
         # in this scenario.
         providers.remove(env_provider)
-    else:
         logger.debug('Skipping environment variable credential check'
                      ' because profile name was explicitly set.')
 
@@ -245,6 +244,10 @@ class RefreshableCredentials(Credentials):
 
     @property
     def access_key(self):
+        """Warning: Using this property can lead to race conditions if you
+        access another property subsequently along the refresh boundary.
+        Please use get_frozen_credentials instead.
+        """
         self._refresh()
         return self._access_key
 
@@ -254,6 +257,10 @@ class RefreshableCredentials(Credentials):
 
     @property
     def secret_key(self):
+        """Warning: Using this property can lead to race conditions if you
+        access another property subsequently along the refresh boundary.
+        Please use get_frozen_credentials instead.
+        """
         self._refresh()
         return self._secret_key
 
@@ -263,6 +270,10 @@ class RefreshableCredentials(Credentials):
 
     @property
     def token(self):
+        """Warning: Using this property can lead to race conditions if you
+        access another property subsequently along the refresh boundary.
+        Please use get_frozen_credentials instead.
+        """
         self._refresh()
         return self._token
 
@@ -477,7 +488,7 @@ class InstanceMetadataProvider(CredentialProvider):
         metadata = fetcher.retrieve_iam_role_credentials()
         if not metadata:
             return None
-        logger.info('Found credentials from IAM Role: %s',
+        logger.debug('Found credentials from IAM Role: %s',
                     metadata['role_name'])
         # We manually set the data here, since we already made the request &
         # have it. When the expiry is hit, the credentials will auto-refresh
