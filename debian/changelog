@@ -1,3 +1,10 @@
+python-botocore (1.5.75-1) UNRELEASED; urgency=medium
+
+  * New upstream version 1.5.75
+  * Bump Standards-Version to 4.0.0 (without changes)
+
+ -- TANIGUCHI Takaki <takaki@debian.org>  Tue, 27 Jun 2017 18:53:40 +0900
+
 python-botocore (1.5.7-1) unstable; urgency=medium
 
   * New upstream version 1.5.7
