@@ -18,8 +18,8 @@ Subject: Don't use duplicated modules (in tests)
 
 Index: python-botocore/tests/integration/test_glacier.py
 ===================================================================
---- python-botocore.orig/tests/integration/test_glacier.py	2016-11-10 11:30:36.074944538 +0900
-+++ python-botocore/tests/integration/test_glacier.py	2016-11-10 11:30:36.066944449 +0900
+--- python-botocore.orig/tests/integration/test_glacier.py	2017-06-27 18:56:30.413114106 +0900
++++ python-botocore/tests/integration/test_glacier.py	2017-06-27 18:56:30.409114169 +0900
 @@ -13,7 +13,7 @@
  from tests import unittest
  
@@ -31,9 +31,9 @@ Index: python-botocore/tests/integration/test_glacier.py
  
 Index: python-botocore/tests/integration/test_s3.py
 ===================================================================
---- python-botocore.orig/tests/integration/test_s3.py	2016-11-10 11:30:36.074944538 +0900
-+++ python-botocore/tests/integration/test_s3.py	2016-11-10 11:30:36.066944449 +0900
-@@ -24,13 +24,13 @@
+--- python-botocore.orig/tests/integration/test_s3.py	2017-06-27 18:56:30.413114106 +0900
++++ python-botocore/tests/integration/test_s3.py	2017-06-27 18:56:30.409114169 +0900
+@@ -25,13 +25,13 @@
  
  from nose.plugins.attrib import attr
  
@@ -50,7 +50,7 @@ Index: python-botocore/tests/integration/test_s3.py
  from botocore.config import Config
  from botocore.exceptions import ClientError
  
-@@ -777,7 +777,7 @@
+@@ -816,7 +816,7 @@
                  raise ConnectionError("Simulated ConnectionError raised.")
              else:
                  return original_send(self, *args, **kwargs)
@@ -61,8 +61,8 @@ Index: python-botocore/tests/integration/test_s3.py
                                                Key='foo.txt', Body=body)
 Index: python-botocore/tests/integration/test_smoke.py
 ===================================================================
---- python-botocore.orig/tests/integration/test_smoke.py	2016-11-10 11:30:36.074944538 +0900
-+++ python-botocore/tests/integration/test_smoke.py	2016-11-10 11:30:36.066944449 +0900
+--- python-botocore.orig/tests/integration/test_smoke.py	2017-06-27 18:56:30.413114106 +0900
++++ python-botocore/tests/integration/test_smoke.py	2017-06-27 18:56:30.409114169 +0900
 @@ -19,8 +19,8 @@
  from botocore import xform_name
  import botocore.session
@@ -85,9 +85,9 @@ Index: python-botocore/tests/integration/test_smoke.py
              response = operation(**kwargs)
 Index: python-botocore/tests/unit/auth/test_signers.py
 ===================================================================
---- python-botocore.orig/tests/unit/auth/test_signers.py	2016-11-10 11:30:36.074944538 +0900
-+++ python-botocore/tests/unit/auth/test_signers.py	2016-11-10 11:30:36.066944449 +0900
-@@ -25,7 +25,7 @@
+--- python-botocore.orig/tests/unit/auth/test_signers.py	2017-06-27 18:56:30.413114106 +0900
++++ python-botocore/tests/unit/auth/test_signers.py	2017-06-27 18:56:30.409114169 +0900
+@@ -24,7 +24,7 @@
  import botocore.credentials
  from botocore.compat import HTTPHeaders, urlsplit, parse_qs, six
  from botocore.awsrequest import AWSRequest
@@ -96,23 +96,10 @@ Index: python-botocore/tests/unit/auth/test_signers.py
  
  
  class BaseTestWithFixedDate(unittest.TestCase):
-Index: python-botocore/tests/unit/response_parsing/test_response_parsing.py
-===================================================================
---- python-botocore.orig/tests/unit/response_parsing/test_response_parsing.py	2016-11-10 11:30:36.074944538 +0900
-+++ python-botocore/tests/unit/response_parsing/test_response_parsing.py	2016-11-10 11:30:36.066944449 +0900
-@@ -20,7 +20,7 @@
- from tests import unittest, create_session
- 
- from mock import Mock
--from botocore.vendored.requests.structures import CaseInsensitiveDict
-+from requests.structures import CaseInsensitiveDict
- 
- import botocore.session
- from botocore import xform_name
 Index: python-botocore/tests/unit/test_awsrequest.py
 ===================================================================
---- python-botocore.orig/tests/unit/test_awsrequest.py	2016-11-10 11:30:36.074944538 +0900
-+++ python-botocore/tests/unit/test_awsrequest.py	2016-11-10 11:30:36.066944449 +0900
+--- python-botocore.orig/tests/unit/test_awsrequest.py	2017-06-27 18:56:30.413114106 +0900
++++ python-botocore/tests/unit/test_awsrequest.py	2017-06-27 18:56:30.409114169 +0900
 @@ -418,7 +418,7 @@
          conn.sock = s
          # Test that the standard library method was used by patching out
@@ -124,12 +111,12 @@ Index: python-botocore/tests/unit/test_awsrequest.py
              self.assertTrue(mock_tunnel.called)
 Index: python-botocore/tests/unit/test_endpoint.py
 ===================================================================
---- python-botocore.orig/tests/unit/test_endpoint.py	2016-11-10 11:30:36.074944538 +0900
-+++ python-botocore/tests/unit/test_endpoint.py	2016-11-10 11:30:36.066944449 +0900
-@@ -15,7 +15,7 @@
+--- python-botocore.orig/tests/unit/test_endpoint.py	2017-06-27 18:56:30.413114106 +0900
++++ python-botocore/tests/unit/test_endpoint.py	2017-06-27 18:57:04.400581187 +0900
+@@ -14,7 +14,7 @@
+ from tests import unittest
  
  from mock import Mock, patch, sentinel
- from nose.tools import assert_equals
 -from botocore.vendored.requests import ConnectionError
 +from requests import ConnectionError
  
@@ -137,8 +124,8 @@ Index: python-botocore/tests/unit/test_endpoint.py
  from botocore.awsrequest import AWSRequest
 Index: python-botocore/tests/unit/test_response.py
 ===================================================================
---- python-botocore.orig/tests/unit/test_response.py	2016-11-10 11:30:36.074944538 +0900
-+++ python-botocore/tests/unit/test_response.py	2016-11-10 11:30:36.066944449 +0900
+--- python-botocore.orig/tests/unit/test_response.py	2017-06-27 18:56:30.413114106 +0900
++++ python-botocore/tests/unit/test_response.py	2017-06-27 18:56:30.409114169 +0900
 @@ -20,7 +20,7 @@
  from botocore import response
  from botocore.compat import six
@@ -150,8 +137,8 @@ Index: python-botocore/tests/unit/test_response.py
              b'<Code>AccessDenied</Code>'
 Index: python-botocore/tests/unit/test_retryhandler.py
 ===================================================================
---- python-botocore.orig/tests/unit/test_retryhandler.py	2016-11-10 11:30:36.074944538 +0900
-+++ python-botocore/tests/unit/test_retryhandler.py	2016-11-10 11:30:36.066944449 +0900
+--- python-botocore.orig/tests/unit/test_retryhandler.py	2017-06-27 18:56:30.413114106 +0900
++++ python-botocore/tests/unit/test_retryhandler.py	2017-06-27 18:56:30.409114169 +0900
 @@ -16,8 +16,8 @@
  from tests import unittest
  
@@ -165,14 +152,14 @@ Index: python-botocore/tests/unit/test_retryhandler.py
  from botocore.exceptions import ChecksumError
 Index: python-botocore/tests/unit/test_utils.py
 ===================================================================
---- python-botocore.orig/tests/unit/test_utils.py	2016-11-10 11:30:36.074944538 +0900
-+++ python-botocore/tests/unit/test_utils.py	2016-11-10 11:30:36.066944449 +0900
+--- python-botocore.orig/tests/unit/test_utils.py	2017-06-27 18:56:30.413114106 +0900
++++ python-botocore/tests/unit/test_utils.py	2017-06-27 18:57:31.816152563 +0900
 @@ -25,7 +25,7 @@
  from botocore.exceptions import ClientError
  from botocore.exceptions import InvalidDNSNameError, MetadataRetrievalError
  from botocore.model import ServiceModel
 -from botocore.vendored import requests
 +import requests
+ from botocore.utils import is_json_value_header
  from botocore.utils import remove_dot_segments
  from botocore.utils import normalize_url_path
- from botocore.utils import validate_jmespath_for_set
