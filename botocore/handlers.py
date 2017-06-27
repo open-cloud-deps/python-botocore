@@ -31,6 +31,7 @@ from botocore.docs.utils import HideParamFromOperations
 from botocore.docs.utils import AppendParamDocumentation
 from botocore.signers import add_generate_presigned_url
 from botocore.signers import add_generate_presigned_post
+from botocore.signers import add_generate_db_auth_token
 from botocore.exceptions import ParamValidationError
 from botocore.exceptions import AliasConflictParameterError
 from botocore.exceptions import UnsupportedTLSVersionWarning
@@ -95,6 +96,39 @@ def _looks_like_special_case_error(http_response):
         if root.tag == 'Error':
             return True
     return False
+
+
+def set_operation_specific_signer(context, signing_name, **kwargs):
+    """ Choose the operation-specific signer.
+
+    Individual operations may have a different auth type than the service as a
+    whole. This will most often manifest as operations that should not be
+    authenticated at all, but can include other auth modes such as sigv4
+    without body signing.
+    """
+    auth_type = context.get('auth_type')
+
+    # Auth type will be None if the operation doesn't have a configured auth
+    # type.
+    if not auth_type:
+        return
+
+    # Auth type will be the string value 'none' if the operation should not
+    # be signed at all.
+    if auth_type == 'none':
+        return botocore.UNSIGNED
+
+    if auth_type.startswith('v4'):
+        signature_version = 'v4'
+        if signing_name == 's3':
+            signature_version = 's3v4'
+
+        # If the operation needs an unsigned body, we set additional context
+        # allowing the signer to be aware of this.
+        if auth_type == 'v4-unsigned-body':
+            context['payload_signing_enabled'] = False
+
+        return signature_version
 
 
 def decode_console_output(parsed, **kwargs):
@@ -606,7 +640,7 @@ def document_glacier_tree_hash_checksum():
         previous uploaded parts, using the algorithm described in
         `Glacier documentation <http://docs.aws.amazon.com/amazonglacier/latest/dev/checksum-calculations.html>`_.
 
-        But if you prefer, you can also use botocore.util.calculate_tree_hash()
+        But if you prefer, you can also use botocore.utils.calculate_tree_hash()
         to compute it from raw file by::
 
             checksum = calculate_tree_hash(open('your_file.txt', 'rb'))
@@ -781,17 +815,32 @@ class ParameterAlias(object):
         section.write(updated_content)
 
 
+class ClientMethodAlias(object):
+    def __init__(self, actual_name):
+        """ Aliases a non-extant method to an existing method.
+
+        :param actual_name: The name of the method that actually exists on
+            the client.
+        """
+        self._actual = actual_name
+
+    def __call__(self, client, **kwargs):
+        return getattr(client, self._actual)
+
 # This is a list of (event_name, handler).
 # When a Session is created, everything in this list will be
 # automatically registered with that Session.
 
 BUILTIN_HANDLERS = [
+    ('getattr.mturk.list_hi_ts_for_qualification_type',
+     ClientMethodAlias('list_hits_for_qualification_type')),
     ('before-parameter-build.s3.UploadPart',
      convert_body_to_file_like_object, REGISTER_LAST),
     ('before-parameter-build.s3.PutObject',
      convert_body_to_file_like_object, REGISTER_LAST),
     ('creating-client-class', add_generate_presigned_url),
     ('creating-client-class.s3', add_generate_presigned_post),
+    ('creating-client-class.rds', add_generate_db_auth_token),
     ('creating-client-class.iot-data', check_openssl_supports_tls_version_1_2),
     ('after-call.iam', json_decode_policies),
 
@@ -839,6 +888,10 @@ BUILTIN_HANDLERS = [
     ('before-call.glacier.UploadArchive', add_glacier_checksums),
     ('before-call.glacier.UploadMultipartPart', add_glacier_checksums),
     ('before-call.ec2.CopySnapshot', inject_presigned_url_ec2),
+    ('before-call.rds.CopyDBClusterSnapshot',
+     inject_presigned_url_rds),
+    ('before-call.rds.CreateDBCluster',
+     inject_presigned_url_rds),
     ('before-call.rds.CopyDBSnapshot',
      inject_presigned_url_rds),
     ('before-call.rds.CreateDBInstanceReadReplica',
@@ -856,22 +909,7 @@ BUILTIN_HANDLERS = [
         disable_signing),
     ('choose-signer.sts.AssumeRoleWithSAML', disable_signing),
     ('choose-signer.sts.AssumeRoleWithWebIdentity', disable_signing),
-    ('choose-signer.cognito-idp.ConfirmSignUp', disable_signing),
-    ('choose-signer.cognito-idp.VerifyUserAttribute', disable_signing),
-    ('choose-signer.cognito-idp.ForgotPassword', disable_signing),
-    ('choose-signer.cognito-idp.SignUp', disable_signing),
-    ('choose-signer.cognito-idp.UpdateUserAttributes', disable_signing),
-    ('choose-signer.cognito-idp.ConfirmForgotPassword', disable_signing),
-    ('choose-signer.cognito-idp.ResendConfirmationCode', disable_signing),
-    ('choose-signer.cognito-idp.GetUserAttributeVerificationCode',
-     disable_signing),
-    ('choose-signer.cognito-idp.GetUser', disable_signing),
-    ('choose-signer.cognito-idp.ChangePassword', disable_signing),
-    ('choose-signer.cognito-idp.GetOpenIdConfiguration', disable_signing),
-    ('choose-signer.cognito-idp.DeleteUser', disable_signing),
-    ('choose-signer.cognito-idp.SetUserSettings', disable_signing),
-    ('choose-signer.cognito-idp.GetJWKS', disable_signing),
-    ('choose-signer.cognito-idp.DeleteUserAttributes', disable_signing),
+    ('choose-signer', set_operation_specific_signer),
     ('before-parameter-build.s3.HeadObject', sse_md5),
     ('before-parameter-build.s3.GetObject', sse_md5),
     ('before-parameter-build.s3.PutObject', sse_md5),
@@ -911,6 +949,17 @@ BUILTIN_HANDLERS = [
      document_base64_encoding('UserData')),
     ('docs.*.autoscaling.CreateLaunchConfiguration.complete-section',
      document_base64_encoding('UserData')),
+
+    # RDS PresignedUrl documentation customizations
+    ('docs.*.rds.CopyDBClusterSnapshot.complete-section',
+     AutoPopulatedParam('PreSignedUrl').document_auto_populated_param),
+    ('docs.*.rds.CreateDBCluster.complete-section',
+     AutoPopulatedParam('PreSignedUrl').document_auto_populated_param),
+    ('docs.*.rds.CopyDBSnapshot.complete-section',
+     AutoPopulatedParam('PreSignedUrl').document_auto_populated_param),
+    ('docs.*.rds.CreateDBInstanceReadReplica.complete-section',
+     AutoPopulatedParam('PreSignedUrl').document_auto_populated_param),
+
     # EC2 CopySnapshot documentation customizations
     ('docs.*.ec2.CopySnapshot.complete-section',
      AutoPopulatedParam('PresignedUrl').document_auto_populated_param),
