@@ -16,8 +16,8 @@ fix path
 
 Index: python-botocore/botocore/awsrequest.py
 ===================================================================
---- python-botocore.orig/botocore/awsrequest.py	2017-06-27 18:54:24.871097676 +0900
-+++ python-botocore/botocore/awsrequest.py	2017-06-27 18:54:24.855097931 +0900
+--- python-botocore.orig/botocore/awsrequest.py	2017-06-28 11:09:40.751173397 +0900
++++ python-botocore/botocore/awsrequest.py	2017-06-28 11:09:40.743173496 +0900
 @@ -23,15 +23,15 @@
      urlparse
  from botocore.exceptions import UnseekableStreamError
@@ -42,9 +42,9 @@ Index: python-botocore/botocore/awsrequest.py
  
 Index: python-botocore/botocore/compat.py
 ===================================================================
---- python-botocore.orig/botocore/compat.py	2017-06-27 18:54:24.871097676 +0900
-+++ python-botocore/botocore/compat.py	2017-06-27 18:54:24.855097931 +0900
-@@ -19,9 +19,9 @@
+--- python-botocore.orig/botocore/compat.py	2017-06-28 11:09:40.751173397 +0900
++++ python-botocore/botocore/compat.py	2017-06-28 11:10:01.494915395 +0900
+@@ -19,15 +19,15 @@
  import hashlib
  import logging
  
@@ -56,10 +56,17 @@ Index: python-botocore/botocore/compat.py
  
  logger = logging.getLogger(__name__)
  
+ 
+ if six.PY3:
+-    from botocore.vendored.six.moves import http_client
++    from six.moves import http_client
+ 
+     class HTTPHeaders(http_client.HTTPMessage):
+         pass
 Index: python-botocore/botocore/endpoint.py
 ===================================================================
---- python-botocore.orig/botocore/endpoint.py	2017-06-27 18:54:24.871097676 +0900
-+++ python-botocore/botocore/endpoint.py	2017-06-27 18:54:24.855097931 +0900
+--- python-botocore.orig/botocore/endpoint.py	2017-06-28 11:09:40.751173397 +0900
++++ python-botocore/botocore/endpoint.py	2017-06-28 11:09:40.743173496 +0900
 @@ -17,11 +17,11 @@
  import time
  import threading
@@ -97,8 +104,8 @@ Index: python-botocore/botocore/endpoint.py
      :rtype: dict
 Index: python-botocore/botocore/exceptions.py
 ===================================================================
---- python-botocore.orig/botocore/exceptions.py	2017-06-27 18:54:24.871097676 +0900
-+++ python-botocore/botocore/exceptions.py	2017-06-27 18:54:24.855097931 +0900
+--- python-botocore.orig/botocore/exceptions.py	2017-06-28 11:09:40.751173397 +0900
++++ python-botocore/botocore/exceptions.py	2017-06-28 11:09:40.743173496 +0900
 @@ -12,7 +12,7 @@
  # ANY KIND, either express or implied. See the License for the specific
  # language governing permissions and limitations under the License.
@@ -110,8 +117,8 @@ Index: python-botocore/botocore/exceptions.py
  class BotoCoreError(Exception):
 Index: python-botocore/botocore/retryhandler.py
 ===================================================================
---- python-botocore.orig/botocore/retryhandler.py	2017-06-27 18:54:24.871097676 +0900
-+++ python-botocore/botocore/retryhandler.py	2017-06-27 18:54:24.855097931 +0900
+--- python-botocore.orig/botocore/retryhandler.py	2017-06-28 11:09:40.751173397 +0900
++++ python-botocore/botocore/retryhandler.py	2017-06-28 11:09:40.747173447 +0900
 @@ -17,8 +17,8 @@
  import logging
  from binascii import crc32
@@ -125,8 +132,8 @@ Index: python-botocore/botocore/retryhandler.py
  
 Index: python-botocore/botocore/stub.py
 ===================================================================
---- python-botocore.orig/botocore/stub.py	2017-06-27 18:54:24.871097676 +0900
-+++ python-botocore/botocore/stub.py	2017-06-27 18:54:24.855097931 +0900
+--- python-botocore.orig/botocore/stub.py	2017-06-28 11:09:40.751173397 +0900
++++ python-botocore/botocore/stub.py	2017-06-28 11:09:40.747173447 +0900
 @@ -17,7 +17,7 @@
  from botocore.validate import validate_parameters
  from botocore.exceptions import ParamValidationError, \
@@ -138,25 +145,9 @@ Index: python-botocore/botocore/stub.py
  class _ANY(object):
 Index: python-botocore/botocore/utils.py
 ===================================================================
---- python-botocore.orig/botocore/utils.py	2017-06-27 18:54:24.871097676 +0900
-+++ python-botocore/botocore/utils.py	2017-06-27 18:55:44.521836420 +0900
-@@ -1,4 +1,15 @@
- # Copyright 2012-2014 Amazon.com, Inc. or its affiliates. All Rights Reserved.
-+--- botocore/utils.py	2016-11-10 11:30:23.478805141 +0900
-++++ botocore/utils.py	2016-11-10 11:30:23.466805008 +0900
-+@@ -28,7 +28,7 @@
-+ from botocore.exceptions import InvalidDNSNameError, ClientError
-+ from botocore.exceptions import MetadataRetrievalError
-+ from botocore.compat import json, quote, zip_longest, urlsplit, urlunsplit
-+-from botocore.vendored import requests
-++import requests
-+ from botocore.compat import OrderedDict
-+ 
-+ 
- #
- # Licensed under the Apache License, Version 2.0 (the "License"). You
- # may not use this file except in compliance with the License. A copy of
-@@ -27,7 +38,7 @@
+--- python-botocore.orig/botocore/utils.py	2017-06-28 11:09:40.751173397 +0900
++++ python-botocore/botocore/utils.py	2017-06-28 11:10:43.110397876 +0900
+@@ -27,7 +27,7 @@
  from botocore.exceptions import InvalidDNSNameError, ClientError
  from botocore.exceptions import MetadataRetrievalError
  from botocore.compat import json, quote, zip_longest, urlsplit, urlunsplit
