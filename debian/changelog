@@ -1,3 +1,9 @@
+python-botocore (1.5.75-2) unstable; urgency=medium
+
+  * debian/patches: Fix errors. (Closes: #866163)
+
+ -- TANIGUCHI Takaki <takaki@debian.org>  Wed, 28 Jun 2017 11:19:03 +0900
+
 python-botocore (1.5.75-1) unstable; urgency=medium
 
   * New upstream version 1.5.75
