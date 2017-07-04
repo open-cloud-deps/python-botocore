@@ -5,6 +5,7 @@
 #export DH_VERBOSE=1
 
 export PYBUILD_NAME=botocore
+export PYBUILD_DISABLE=test
 
 %:
 	dh $@ --with python2,python3 --buildsystem=pybuild
@@ -12,6 +13,3 @@ export PYBUILD_NAME=botocore
 override_dh_fixperms:
 	dh_fixperms
 	chmod -x $(CURDIR)/debian/python*-botocore/usr/lib/python*/dist-packages/botocore/data/*/*/*.json
-
-override_dh_auto_test:
-	true
