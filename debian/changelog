@@ -1,9 +1,9 @@
-python-botocore (1.5.80-1) UNRELEASED; urgency=medium
+python-botocore (1.5.80-1) unstable; urgency=medium
 
-  * disable test
   * New upstream version 1.5.80
+  * debian/compat: Bump to 10
 
- -- TANIGUCHI Takaki <takaki@debian.org>  Mon, 10 Jul 2017 16:39:50 +0900
+ -- TANIGUCHI Takaki <takaki@debian.org>  Mon, 10 Jul 2017 16:41:24 +0900
 
 python-botocore (1.5.78-1) unstable; urgency=medium
 
