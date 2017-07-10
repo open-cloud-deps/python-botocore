@@ -172,6 +172,7 @@ botocore/data/dms/2016-01-01/examples-1.json
 botocore/data/dms/2016-01-01/paginators-1.json
 botocore/data/dms/2016-01-01/service-2.json
 botocore/data/ds/2015-04-16/examples-1.json
+botocore/data/ds/2015-04-16/paginators-1.json
 botocore/data/ds/2015-04-16/service-2.json
 botocore/data/dynamodb/2012-08-10/examples-1.json
 botocore/data/dynamodb/2012-08-10/paginators-1.json
@@ -604,6 +605,7 @@ tests/functional/test_regions.py
 tests/functional/test_s3.py
 tests/functional/test_session.py
 tests/functional/test_six_imports.py
+tests/functional/test_six_threading.py
 tests/functional/test_stub.py
 tests/functional/test_waiter_config.py
 tests/functional/docs/__init__.py
